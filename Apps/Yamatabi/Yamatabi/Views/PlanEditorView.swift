@@ -17,6 +17,7 @@ struct PlanEditorView: View {
     @State private var isPickingParking = false
     @State private var isSearchingOrigin = false
     @State private var isEditingCourseTime = false
+    @State private var isPickingRoute = false
     @State private var isEditingToll = false
 
     @State private var routeError: String?
@@ -43,6 +44,11 @@ struct PlanEditorView: View {
         .sheet(isPresented: $isPickingParking) {
             ParkingPickerView(summit: plan.summitCoordinate) { spot in
                 applyTrailhead(name: spot.name, coordinate: spot.coordinate)
+            }
+        }
+        .sheet(isPresented: $isPickingRoute) {
+            RoutePickerView(routes: availableRoutes) { route in
+                plan.apply(route: route)
             }
         }
         .sheet(isPresented: $isSearchingOrigin) {
@@ -153,8 +159,38 @@ struct PlanEditorView: View {
 
     // MARK: - コースタイム
 
+    /// この山について調査済みのルート。
+    private var availableRoutes: [CourseRoute] {
+        CourseRouteData.routes(for: plan.mountainID)
+    }
+
     private var courseTimeSection: some View {
         Section {
+            if !availableRoutes.isEmpty {
+                Button {
+                    isPickingRoute = true
+                } label: {
+                    LabeledContent(
+                        "登山ルート",
+                        value: plan.routeName ?? "選ぶ（\(availableRoutes.count)件）"
+                    )
+                }
+                if let startName = plan.routeStartName {
+                    LabeledContent("ルートの登山口", value: startName)
+                        .font(.caption)
+                }
+                if let grade = plan.routeGradeText {
+                    LabeledContent("グレード", value: grade)
+                        .font(.caption)
+                }
+                if plan.routeIsRoundTrip == false {
+                    Label("往復ではないルートです。車の回収方法を確認してください。",
+                          systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+
             Button {
                 isEditingCourseTime = true
             } label: {
@@ -197,7 +233,13 @@ struct PlanEditorView: View {
         }
         if plan.courseTimeSource.needsCaution {
             return "⚠️ \(plan.courseTimeSource.label)です。標高差だけで計算しており水平距離を考慮していないため、"
-                + "なだらかに長く歩く山では短く出ます。ガイドブックの値が分かるなら上書きしてください。"
+                + "なだらかに長く歩く山では短く出ます。"
+                + (availableRoutes.isEmpty
+                   ? "ガイドブックの値が分かるなら上書きしてください。"
+                   : "上の登山ルートから選ぶと、公表されている標準コースタイムを使えます。")
+        }
+        if plan.courseTimeSource == .researched {
+            return "出典: 十県一山域の日本百名山「登山ルートグレーディング」一覧表（各県公表）。"
         }
         return plan.courseTimeSource.label + "を使っています。"
     }

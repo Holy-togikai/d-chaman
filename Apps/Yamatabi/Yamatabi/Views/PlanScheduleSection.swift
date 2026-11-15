@@ -12,7 +12,19 @@ struct PlanScheduleSection: View {
 
                 row("下山を終える", schedule.descentDeadline, "flag.checkered", .red)
                 row("歩き出す", schedule.startHikingAt, "figure.hiking", .green)
-                row("家を出る", schedule.leaveHomeAt, "car.fill", .blue, emphasized: true)
+
+                // 移動時間が分からないまま出発時刻を出すと、間に合わない計画を
+                // 信じてしまう。危険な側に外すので、揃うまでは出さない。
+                if plan.driveTimeSeconds != nil {
+                    row("家を出る", schedule.leaveHomeAt, "car.fill", .blue, emphasized: true)
+                } else {
+                    Label(
+                        "出発地と登山口を設定すると、家を出る時刻を計算します。",
+                        systemImage: "car"
+                    )
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                }
 
                 if schedule.requiresNightDeparture {
                     Label(
@@ -40,12 +52,8 @@ struct PlanScheduleSection: View {
     }
 
     private func footerText(for schedule: HikeSchedule) -> String {
-        var text = "日の入りの1時間前（\(time(schedule.descentDeadline))）までに"
-            + "下山を終える計画です。登山口での準備に30分を見込んでいます。"
-        if plan.driveTimeSeconds == nil {
-            text += "\n移動時間がまだ含まれていません。出発地と登山口を設定してください。"
-        }
-        return text
+        "日の入りの1時間前（\(time(schedule.descentDeadline))）までに下山を終える計画です。"
+            + "登山口での準備に30分を見込んでいます。"
     }
 
     private func row(

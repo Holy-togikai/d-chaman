@@ -43,6 +43,16 @@ final class HikePlan {
     /// ペース倍率。
     var paceRaw: Double = HikePace.standard.rawValue
 
+    // --- 選んだ登山ルート（調査済みデータから）---
+    var routeName: String?
+    /// ルートの登山口の地名。駐車場を探すときの手がかりになります。
+    var routeStartName: String?
+    var routeFitnessLevel: Int?
+    var routeDifficultyLevel: String?
+    var routeLengthKm: Double?
+    /// 往復できるルートか。違う場合は車の回収方法を考える必要があります。
+    var routeIsRoundTrip: Bool?
+
     // --- 移動（計算結果のキャッシュ。経路計算は通信を伴うため毎回は行わない）---
     var driveTimeSeconds: TimeInterval?
     var driveDistance: Double?
@@ -119,6 +129,27 @@ final class HikePlan {
                 driveTime: driveTimeSeconds ?? 0
             )
         )
+    }
+
+    /// 選んだルートの要約。「体力度5 ・ 難易度B ・ 18.1km」
+    var routeGradeText: String? {
+        guard let routeFitnessLevel, let routeDifficultyLevel, let routeLengthKm else { return nil }
+        return String(
+            format: "体力度%d ・ 難易度%@ ・ %.1fkm",
+            routeFitnessLevel, routeDifficultyLevel, routeLengthKm
+        )
+    }
+
+    /// 選んだルートを計画に反映する。
+    func apply(route: CourseRoute) {
+        routeName = route.shortTitle
+        routeStartName = route.startName
+        routeFitnessLevel = route.fitnessLevel
+        routeDifficultyLevel = route.difficultyLevel
+        routeLengthKm = route.lengthKm
+        routeIsRoundTrip = route.isRoundTrip
+        courseTimeSeconds = route.courseTime
+        courseTimeSource = .researched
     }
 
     /// 計画として成立しているか。足りない項目を文章で返します。
