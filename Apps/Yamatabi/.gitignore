@@ -1,0 +1,21 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# CocoaPods / Carthage（使う場合に備えて）
+Pods/
+Carthage/Build/
+
+# macOS
+.DS_Store
