@@ -10,6 +10,8 @@ struct ContentView: View {
     @State private var isSearching = false
     /// 登山記録の一覧を出しているか。
     @State private var isShowingRecords = false
+    /// 登山計画の一覧を出しているか。
+    @State private var isShowingPlans = false
     /// 「終了」を押したあとの確認。
     @State private var isConfirmingFinish = false
     /// 保存できなかったときの通知。
@@ -62,6 +64,9 @@ struct ContentView: View {
         .sheet(isPresented: $isShowingRecords) {
             RecordListView()
         }
+        .sheet(isPresented: $isShowingPlans) {
+            PlanListView()
+        }
         // confirmationDialog ではキャンセルボタンが表示されない場合があり、
         // 記録を止めるという取り返しのつかない操作で逃げ道が見えないのは危ないため、
         // 2つのボタンが必ず並ぶ alert を使う。
@@ -110,6 +115,15 @@ struct ContentView: View {
             }
 
             Spacer()
+
+            Button {
+                isShowingPlans = true
+            } label: {
+                Image(systemName: "calendar")
+                    .font(.system(size: 16, weight: .medium))
+                    .frame(width: 40, height: 40)
+                    .background(.regularMaterial, in: Circle())
+            }
 
             Button {
                 isShowingRecords = true
@@ -271,5 +285,5 @@ struct MountainListView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: HikeRecord.self, inMemory: true)
+        .modelContainer(for: [HikeRecord.self, HikePlan.self], inMemory: true)
 }

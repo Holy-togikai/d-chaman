@@ -113,7 +113,14 @@ extension TrackStatistics {
     var elapsedText: String { Self.durationText(elapsed) }
     var movingText: String { Self.durationText(moving) }
 
-    /// 「2:35:10」形式。
+    /// 「7時間28分」形式。計画の所要時間など、秒まで要らない場面で使います。
+    static func hourMinuteText(_ interval: TimeInterval) -> String {
+        guard interval.isFinite, interval > 0 else { return "—" }
+        let minutes = Int((interval / 60).rounded())
+        return minutes >= 60 ? "\(minutes / 60)時間\(minutes % 60)分" : "\(minutes)分"
+    }
+
+    /// 「2:35:10」形式。記録中の経過時間のように、秒まで見せたい場面で使います。
     static func durationText(_ interval: TimeInterval) -> String {
         guard interval.isFinite, interval >= 0 else { return "0:00:00" }
         let total = Int(interval)

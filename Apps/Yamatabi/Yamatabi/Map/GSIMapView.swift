@@ -12,6 +12,8 @@ struct GSIMapView: UIViewRepresentable {
     var annotations: [MountainAnnotation] = []
     /// この山にカメラを寄せる。nil なら日本全体のまま。
     var focused: Mountain?
+    /// 最初に表示する中心。山を選ばずに特定地点を見せたいときに使います。
+    var initialCenter: CLLocationCoordinate2D?
     /// 記録中の軌跡。地図上に線で描きます。
     var track: [TrackPoint] = []
     /// 現在地の青い点を表示するか。
@@ -22,19 +24,37 @@ struct GSIMapView: UIViewRepresentable {
     var fitsTrack = false
     /// ピンがタップされたときに呼ばれる。
     var onSelect: ((MountainAnnotation) -> Void)?
+    /// 地図を長押ししたときに呼ばれる。登山口を自分で指定するのに使います。
+    var onLongPress: ((CLLocationCoordinate2D) -> Void)?
 
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
         mapView.showsUserLocation = false
         mapView.showsCompass = true
-        mapView.region = .japan
+        if let initialCenter {
+            mapView.region = MKCoordinateRegion(
+                center: initialCenter,
+                span: MKCoordinateSpan(latitudeDelta: 0.12, longitudeDelta: 0.12)
+            )
+        } else {
+            mapView.region = .japan
+        }
         context.coordinator.apply(tile: tile, to: mapView)
+
+        let longPress = UILongPressGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleLongPress(_:))
+        )
+        mapView.addGestureRecognizer(longPress)
+        context.coordinator.mapView = mapView
+
         return mapView
     }
 
     func updateUIView(_ mapView: MKMapView, context: Context) {
         context.coordinator.onSelect = onSelect
+        context.coordinator.onLongPress = onLongPress
 
         if mapView.showsUserLocation != showsUserLocation {
             mapView.showsUserLocation = showsUserLocation
@@ -108,7 +128,16 @@ struct GSIMapView: UIViewRepresentable {
         var currentAnnotationIDs: Set<String> = []
         var focusedID: String?
         var onSelect: ((MountainAnnotation) -> Void)?
+        var onLongPress: ((CLLocationCoordinate2D) -> Void)?
+        weak var mapView: MKMapView?
         private(set) var trackCount = 0
+
+        @objc func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
+            // 押し下げた瞬間に1回だけ反応させる。離すまで待つと取りこぼしやすい。
+            guard gesture.state == .began, let mapView else { return }
+            let point = gesture.location(in: mapView)
+            onLongPress?(mapView.convert(point, toCoordinateFrom: mapView))
+        }
         /// 記録開始時のズームを1度だけ行うためのフラグ。
         var hasZoomedToTrack = false
         private(set) var trackLine: MKPolyline?

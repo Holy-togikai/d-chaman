@@ -8,7 +8,7 @@ struct YamatabiApp: App {
         WindowGroup {
             ContentView()
         }
-        // 登山記録の保存先。端末内のデータベースに永続化されます。
-        .modelContainer(for: HikeRecord.self)
+        // 登山記録と登山計画の保存先。端末内のデータベースに永続化されます。
+        .modelContainer(for: [HikeRecord.self, HikePlan.self])
     }
 }

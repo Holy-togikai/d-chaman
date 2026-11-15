@@ -1,0 +1,17 @@
+# SwiftLint の設定。
+# 既定のままだと、Swift では避けようのない書き方まで指摘されるため、そこだけ緩めています。
+
+excluded:
+  - Yamatabi/Resources   # 生成物（mountains.json）
+  - Tools
+
+nesting:
+  # Codable の CodingKeys は型の中に入れ子にするしかないため、2階層まで許す。
+  type_level: 2
+
+identifier_name:
+  min_length:
+    warning: 2
+    error: 2
+  excluded:
+    - id   # Identifiable の要件
