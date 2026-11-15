@@ -157,6 +157,25 @@ struct GSIMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            // 近接したピンがまとめられたもの。1,000地点あるので、
+            // まとめ表示が無いと日本全体を見たときに地図が埋まってしまう。
+            if let cluster = annotation as? MKClusterAnnotation {
+                let identifier = "cluster"
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
+                    as? MKMarkerAnnotationView
+                    ?? MKMarkerAnnotationView(annotation: cluster, reuseIdentifier: identifier)
+                view.annotation = cluster
+                view.markerTintColor = .systemGreen
+                // まとめた中に百名山があれば、その数を出して目印にする。
+                view.glyphText = "\(cluster.memberAnnotations.count)"
+                view.displayPriority = .defaultHigh
+                // まとめピンの既定の表題は「荒島岳 +その他129件」のように長く、
+                // 地図の上に大きく被ってしまうので出さない。数字だけで用は足りる。
+                view.titleVisibility = .hidden
+                view.subtitleVisibility = .hidden
+                return view
+            }
+
             guard let mountain = annotation as? MountainAnnotation else { return nil }
 
             let identifier = "mountain"
@@ -166,9 +185,21 @@ struct GSIMapView: UIViewRepresentable {
 
             view.annotation = mountain
             view.canShowCallout = true
-            view.markerTintColor = .systemGreen
-            view.glyphImage = UIImage(systemName: "mountain.2.fill")
+            view.clusteringIdentifier = "mountain"
             view.rightCalloutAccessoryView = UIButton(type: .detailDisclosure)
+
+            // 百名山は濃い緑＋塗りつぶしのアイコンで目立たせ、
+            // それ以外は控えめにして、地図の情報量を抑える。
+            if mountain.mountain.isHyakumeizan {
+                view.markerTintColor = .systemGreen
+                view.glyphImage = UIImage(systemName: "mountain.2.fill")
+                // 混み合ったときは百名山を優先して残す。
+                view.displayPriority = .required
+            } else {
+                view.markerTintColor = .systemGray
+                view.glyphImage = UIImage(systemName: "mountain.2")
+                view.displayPriority = .defaultLow
+            }
             return view
         }
 
@@ -179,6 +210,23 @@ struct GSIMapView: UIViewRepresentable {
         ) {
             guard let mountain = view.annotation as? MountainAnnotation else { return }
             onSelect?(mountain)
+        }
+
+        func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+            // まとめられたピンを押したら、中身がばらけるまで寄る。
+            guard let cluster = view.annotation as? MKClusterAnnotation else { return }
+            mapView.deselectAnnotation(cluster, animated: false)
+
+            var rect = MKMapRect.null
+            for member in cluster.memberAnnotations {
+                let point = MKMapPoint(member.coordinate)
+                rect = rect.union(MKMapRect(x: point.x, y: point.y, width: 0, height: 0))
+            }
+            mapView.setVisibleMapRect(
+                rect,
+                edgePadding: UIEdgeInsets(top: 90, left: 70, bottom: 200, right: 70),
+                animated: true
+            )
         }
     }
 }

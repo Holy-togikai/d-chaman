@@ -102,7 +102,7 @@ struct ContentView: View {
             Button {
                 isSearching = true
             } label: {
-                Label(selected?.name ?? "山を探す", systemImage: "magnifyingglass")
+                Label(selected?.displayName ?? "山を探す", systemImage: "magnifyingglass")
                     .font(.subheadline.weight(.medium))
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
@@ -182,47 +182,36 @@ struct MountainListView: View {
     let onSelect: (Mountain) -> Void
 
     @State private var query = ""
+    /// 百名山だけに絞り込むか。1,000地点あるので、目的から探せるようにしておく。
+    @State private var onlyHyakumeizan = false
     @Environment(\.dismiss) private var dismiss
 
     private var results: [Mountain] {
-        mountains
-            .filter { $0.matches(query) }
-            .sorted { $0.elevation > $1.elevation }
+        // データは標高の高い順に並んだ状態で読み込んでいるので、並べ替えは不要。
+        mountains.filter { mountain in
+            (!onlyHyakumeizan || mountain.isHyakumeizan) && mountain.matches(query)
+        }
     }
 
     var body: some View {
         NavigationStack {
-            List(results) { mountain in
-                Button {
-                    onSelect(mountain)
-                } label: {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Text(mountain.name)
-                                    .font(.body.weight(.medium))
-                                if mountain.isHyakumeizan {
-                                    Text("百名山")
-                                        .font(.caption2.weight(.semibold))
-                                        .padding(.horizontal, 5)
-                                        .padding(.vertical, 2)
-                                        .background(Color.green.opacity(0.18), in: Capsule())
-                                        .foregroundStyle(.green)
-                                }
-                            }
-                            Text(mountain.prefectureText)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Text("\(mountain.elevation)m")
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
+            List {
+                Section {
+                    Toggle("日本百名山だけ", isOn: $onlyHyakumeizan)
+                        .font(.subheadline)
                 }
-                .tint(.primary)
+
+                Section {
+                    ForEach(results) { mountain in
+                        Button { onSelect(mountain) } label: { row(mountain) }
+                            .tint(.primary)
+                    }
+                } header: {
+                    Text("\(results.count) 件")
+                } footer: {
+                    attributionFooter
+                }
             }
-            .listStyle(.plain)
             .searchable(text: $query, prompt: "山名・ふりがな・都道府県")
             .navigationTitle("山を探す")
             .navigationBarTitleDisplayMode(.inline)
@@ -237,6 +226,46 @@ struct MountainListView: View {
                 }
             }
         }
+    }
+
+    private func row(_ mountain: Mountain) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(mountain.displayName)
+                        .font(.body.weight(.medium))
+                        .lineLimit(1)
+                    if mountain.isHyakumeizan {
+                        Text("百名山")
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.green.opacity(0.18), in: Capsule())
+                            .foregroundStyle(.green)
+                    }
+                }
+                Text(mountain.prefectureText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text("\(mountain.elevation)m")
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// 山岳データの出典。利用条件として明示が必要です。消さないでください。
+    private var attributionFooter: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("山岳データ出典")
+            Link(
+                "国土地理院「日本の主な山岳標高」",
+                destination: URL(string: "https://www.gsi.go.jp/kihonjohochousa/kihonjohochousa41139.html")!
+            )
+        }
+        .font(.caption2)
+        .padding(.top, 8)
     }
 }
 
