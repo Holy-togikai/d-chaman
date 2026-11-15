@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 struct ContentView: View {
@@ -7,6 +8,15 @@ struct ContentView: View {
     @State private var selected: Mountain?
     /// 山を探すシートを出しているか。
     @State private var isSearching = false
+    /// 登山記録の一覧を出しているか。
+    @State private var isShowingRecords = false
+    /// 「終了」を押したあとの確認。
+    @State private var isConfirmingFinish = false
+    /// 保存できなかったときの通知。
+    @State private var saveFailureMessage: String?
+
+    @StateObject private var tracker = LocationTracker()
+    @Environment(\.modelContext) private var modelContext
 
     private let mountains = MountainData.all
 
@@ -15,16 +25,33 @@ struct ContentView: View {
             tile: tile,
             annotations: mountains.map(MountainAnnotation.init),
             focused: selected,
+            track: tracker.points,
+            showsUserLocation: tracker.state != .idle,
+            followsTrack: tracker.state == .recording,
             onSelect: { selected = $0.mountain }
         )
         .ignoresSafeArea()
-        // 操作バーと出典表示は overlay で重ねる。
-        // ZStack に全画面の子を並べると、上に乗った子がタップを吸ってしまうため。
         .overlay(alignment: .top) { topBar }
-        .overlay(alignment: .bottomLeading) {
-            attribution
+        // 下部の帯は safeAreaInset で差し込む。
+        // ZStack の子として重ねると、地図側のビューと重なってタップが届かなくなるため。
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 6) {
+                HStack {
+                    attribution
+                    Spacer()
+                }
                 .padding(.horizontal, 12)
-                .padding(.bottom, 8)
+
+                RecordingPanel(
+                    state: tracker.state,
+                    statistics: tracker.statistics,
+                    mountainName: tracker.state == .idle ? selected?.name : tracker.mountainName,
+                    onStart: { tracker.start(mountainName: selected?.name) },
+                    onPause: tracker.pause,
+                    onResume: tracker.resume,
+                    onFinish: { isConfirmingFinish = true }
+                )
+            }
         }
         .sheet(isPresented: $isSearching) {
             MountainListView(mountains: mountains) { mountain in
@@ -32,9 +59,44 @@ struct ContentView: View {
                 isSearching = false
             }
         }
+        .sheet(isPresented: $isShowingRecords) {
+            RecordListView()
+        }
+        // confirmationDialog ではキャンセルボタンが表示されない場合があり、
+        // 記録を止めるという取り返しのつかない操作で逃げ道が見えないのは危ないため、
+        // 2つのボタンが必ず並ぶ alert を使う。
+        .alert("記録を終了しますか？", isPresented: $isConfirmingFinish) {
+            Button("続ける", role: .cancel) {}
+            Button("終了して保存", role: .destructive) { finishAndSave() }
+        } message: {
+            Text("ここまでの軌跡を登山記録として保存します。")
+        }
+        .alert(
+            "記録を保存できませんでした",
+            isPresented: .constant(saveFailureMessage != nil),
+            presenting: saveFailureMessage
+        ) { _ in
+            Button("OK") { saveFailureMessage = nil }
+        } message: { message in
+            Text(message)
+        }
+        .alert(
+            "位置情報が使えません",
+            isPresented: .constant(tracker.problem == .permissionDenied)
+        ) {
+            Button("設定を開く") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("閉じる", role: .cancel) {}
+        } message: {
+            Text("登山の軌跡を記録するには、位置情報の利用を許可してください。")
+        }
     }
 
-    /// 画面上部の操作バー。山を探すボタンと、地図の種類切り替え。
+    // MARK: - 操作バー
+
     private var topBar: some View {
         HStack(spacing: 12) {
             Button {
@@ -48,6 +110,15 @@ struct ContentView: View {
             }
 
             Spacer()
+
+            Button {
+                isShowingRecords = true
+            } label: {
+                Image(systemName: "list.bullet.rectangle")
+                    .font(.system(size: 16, weight: .medium))
+                    .frame(width: 40, height: 40)
+                    .background(.regularMaterial, in: Circle())
+            }
 
             Menu {
                 Picker("地図の種類", selection: $tile) {
@@ -77,6 +148,31 @@ struct ContentView: View {
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
         }
         .tint(.secondary)
+    }
+
+    // MARK: - 保存
+
+    private func finishAndSave() {
+        guard let result = tracker.finish() else {
+            saveFailureMessage = "軌跡がほとんど記録されていませんでした。屋外で電波と空の見える場所をお試しください。"
+            return
+        }
+
+        let record = HikeRecord(
+            mountainName: result.mountainName,
+            startedAt: result.startedAt,
+            endedAt: Date(),
+            points: result.points,
+            statistics: result.statistics
+        )
+        modelContext.insert(record)
+
+        do {
+            try modelContext.save()
+            isShowingRecords = true
+        } catch {
+            saveFailureMessage = "保存時にエラーが発生しました（\(error.localizedDescription)）"
+        }
     }
 }
 
@@ -146,4 +242,5 @@ struct MountainListView: View {
 
 #Preview {
     ContentView()
+        .modelContainer(for: HikeRecord.self, inMemory: true)
 }

@@ -103,6 +103,6 @@ enum MountainData {
         Mountain(name: "韓国岳", kana: "からくにだけ", elevation: 1700, prefectures: ["鹿児島県", "宮崎県"],
                  latitude: 31.9339, longitude: 130.8614, isHyakumeizan: true),
         Mountain(name: "宮之浦岳", kana: "みやのうらだけ", elevation: 1936, prefectures: ["鹿児島県"],
-                 latitude: 30.3339, longitude: 130.5058, isHyakumeizan: true),
+                 latitude: 30.3339, longitude: 130.5058, isHyakumeizan: true)
     ]
 }

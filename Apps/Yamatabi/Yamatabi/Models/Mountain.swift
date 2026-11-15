@@ -30,11 +30,11 @@ struct Mountain: Identifiable, Hashable, Codable {
 
     /// 検索語に一致するか。山名・かな・都道府県のどれかに含まれていればヒット。
     func matches(_ query: String) -> Bool {
-        let q = query.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return true }
-        return name.contains(q)
-            || kana.contains(q)
-            || prefectures.contains { $0.contains(q) }
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return true }
+        return name.contains(trimmed)
+            || kana.contains(trimmed)
+            || prefectures.contains { $0.contains(trimmed) }
     }
 }
 

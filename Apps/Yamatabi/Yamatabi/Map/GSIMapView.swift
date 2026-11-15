@@ -12,6 +12,14 @@ struct GSIMapView: UIViewRepresentable {
     var annotations: [MountainAnnotation] = []
     /// この山にカメラを寄せる。nil なら日本全体のまま。
     var focused: Mountain?
+    /// 記録中の軌跡。地図上に線で描きます。
+    var track: [TrackPoint] = []
+    /// 現在地の青い点を表示するか。
+    var showsUserLocation = false
+    /// 軌跡の先端にカメラを追従させるか。記録中に使います。
+    var followsTrack = false
+    /// 軌跡の全体が画面に収まるようにカメラを合わせるか。記録の振り返りに使います。
+    var fitsTrack = false
     /// ピンがタップされたときに呼ばれる。
     var onSelect: ((MountainAnnotation) -> Void)?
 
@@ -27,6 +35,43 @@ struct GSIMapView: UIViewRepresentable {
 
     func updateUIView(_ mapView: MKMapView, context: Context) {
         context.coordinator.onSelect = onSelect
+
+        if mapView.showsUserLocation != showsUserLocation {
+            mapView.showsUserLocation = showsUserLocation
+        }
+
+        // 軌跡は点が増えるたびに描き直す。
+        if context.coordinator.trackCount != track.count {
+            context.coordinator.updateTrack(track, on: mapView)
+
+            // 保存済みの記録を開いたときは、軌跡全体が収まる位置に合わせる。
+            if fitsTrack, let line = context.coordinator.trackLine {
+                mapView.setVisibleMapRect(
+                    line.boundingMapRect,
+                    edgePadding: UIEdgeInsets(top: 70, left: 50, bottom: 180, right: 50),
+                    animated: false
+                )
+            }
+        }
+        // 記録中は、軌跡の先端を画面の中心に保つ。
+        if followsTrack, let tip = track.last {
+            if context.coordinator.hasZoomedToTrack {
+                mapView.setCenter(tip.coordinate, animated: true)
+            } else {
+                // 最初の1回だけ、日本全体の表示から足元が見える縮尺まで寄せる。
+                // 以降は縮尺を触らず、利用者が拡大・縮小した状態を尊重する。
+                mapView.setRegion(
+                    MKCoordinateRegion(
+                        center: tip.coordinate,
+                        span: MKCoordinateSpan(latitudeDelta: 0.006, longitudeDelta: 0.006)
+                    ),
+                    animated: true
+                )
+                context.coordinator.hasZoomedToTrack = true
+            }
+        } else if !followsTrack {
+            context.coordinator.hasZoomedToTrack = false
+        }
 
         // タイル種別が変わったときだけ、オーバーレイを張り替える。
         if context.coordinator.currentTile != tile {
@@ -63,6 +108,26 @@ struct GSIMapView: UIViewRepresentable {
         var currentAnnotationIDs: Set<String> = []
         var focusedID: String?
         var onSelect: ((MountainAnnotation) -> Void)?
+        private(set) var trackCount = 0
+        /// 記録開始時のズームを1度だけ行うためのフラグ。
+        var hasZoomedToTrack = false
+        private(set) var trackLine: MKPolyline?
+
+        /// 軌跡の線を引き直す。
+        func updateTrack(_ track: [TrackPoint], on mapView: MKMapView) {
+            if let trackLine {
+                mapView.removeOverlay(trackLine)
+                self.trackLine = nil
+            }
+            trackCount = track.count
+
+            guard track.count >= 2 else { return }
+            let coordinates = track.map(\.coordinate)
+            let line = MKPolyline(coordinates: coordinates, count: coordinates.count)
+            // タイルより上、ラベルより上に重ねる。
+            mapView.addOverlay(line, level: .aboveLabels)
+            trackLine = line
+        }
 
         func apply(tile: GSITile, to mapView: MKMapView) {
             if let overlay {
@@ -75,10 +140,20 @@ struct GSIMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            guard let tileOverlay = overlay as? MKTileOverlay else {
-                return MKOverlayRenderer(overlay: overlay)
+            if let tileOverlay = overlay as? MKTileOverlay {
+                return MKTileOverlayRenderer(tileOverlay: tileOverlay)
             }
-            return MKTileOverlayRenderer(tileOverlay: tileOverlay)
+            if let line = overlay as? MKPolyline {
+                let renderer = MKPolylineRenderer(polyline: line)
+                // 地理院地図は登山道が黄色〜橙、等高線が茶色。
+                // それらに埋もれないよう、地図側で使われていない赤を選んでいる。
+                renderer.strokeColor = UIColor.systemRed.withAlphaComponent(0.9)
+                renderer.lineWidth = 5
+                renderer.lineJoin = .round
+                renderer.lineCap = .round
+                return renderer
+            }
+            return MKOverlayRenderer(overlay: overlay)
         }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {

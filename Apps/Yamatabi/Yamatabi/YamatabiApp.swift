@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 /// アプリの入口。`@main` が付いた構造体が1つだけ必要で、ここからアプリが始まります。
@@ -7,5 +8,7 @@ struct YamatabiApp: App {
         WindowGroup {
             ContentView()
         }
+        // 登山記録の保存先。端末内のデータベースに永続化されます。
+        .modelContainer(for: HikeRecord.self)
     }
 }
