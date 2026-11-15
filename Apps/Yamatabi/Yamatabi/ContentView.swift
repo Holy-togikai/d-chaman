@@ -11,26 +11,20 @@ struct ContentView: View {
     private let mountains = MountainData.all
 
     var body: some View {
-        ZStack(alignment: .top) {
-            GSIMapView(
-                tile: tile,
-                annotations: mountains.map(MountainAnnotation.init),
-                focused: selected,
-                onSelect: { selected = $0.mountain }
-            )
-            .ignoresSafeArea()
-
-            topBar
-
-            VStack {
-                Spacer()
-                HStack {
-                    attribution
-                    Spacer()
-                }
+        GSIMapView(
+            tile: tile,
+            annotations: mountains.map(MountainAnnotation.init),
+            focused: selected,
+            onSelect: { selected = $0.mountain }
+        )
+        .ignoresSafeArea()
+        // 操作バーと出典表示は overlay で重ねる。
+        // ZStack に全画面の子を並べると、上に乗った子がタップを吸ってしまうため。
+        .overlay(alignment: .top) { topBar }
+        .overlay(alignment: .bottomLeading) {
+            attribution
                 .padding(.horizontal, 12)
                 .padding(.bottom, 8)
-            }
         }
         .sheet(isPresented: $isSearching) {
             MountainListView(mountains: mountains) { mountain in
