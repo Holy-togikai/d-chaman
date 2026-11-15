@@ -16,9 +16,6 @@ struct PlanEditorView: View {
 
     @State private var isPickingParking = false
     @State private var isSearchingOrigin = false
-    @State private var isEditingCourseTime = false
-    @State private var isPickingRoute = false
-    @State private var isEditingToll = false
 
     @State private var routeError: String?
     @State private var isCalculatingRoute = false
@@ -29,7 +26,7 @@ struct PlanEditorView: View {
             dateSection
             trailheadSection
             originSection
-            courseTimeSection
+            PlanCourseTimeSection(plan: plan)
             PlanScheduleSection(plan: plan)
             PlanWeatherSection(
                 forecast: weather,
@@ -37,18 +34,17 @@ struct PlanEditorView: View {
                 isLoading: isLoadingWeather,
                 errorMessage: weatherError
             )
-            driveSection
+            PlanDriveSection(
+                plan: plan,
+                isCalculating: isCalculatingRoute,
+                errorMessage: routeError
+            )
         }
         .navigationTitle(plan.mountainName)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $isPickingParking) {
             ParkingPickerView(summit: plan.summitCoordinate) { spot in
                 applyTrailhead(name: spot.name, coordinate: spot.coordinate)
-            }
-        }
-        .sheet(isPresented: $isPickingRoute) {
-            RoutePickerView(routes: availableRoutes) { route in
-                plan.apply(route: route)
             }
         }
         .sheet(isPresented: $isSearchingOrigin) {
@@ -158,174 +154,6 @@ struct PlanEditorView: View {
     }
 
     // MARK: - コースタイム
-
-    /// この山について調査済みのルート。
-    private var availableRoutes: [CourseRoute] {
-        CourseRouteData.routes(for: plan.mountainID)
-    }
-
-    private var courseTimeSection: some View {
-        Section {
-            if !availableRoutes.isEmpty {
-                Button {
-                    isPickingRoute = true
-                } label: {
-                    LabeledContent(
-                        "登山ルート",
-                        value: plan.routeName ?? "選ぶ（\(availableRoutes.count)件）"
-                    )
-                }
-                if let startName = plan.routeStartName {
-                    LabeledContent("ルートの登山口", value: startName)
-                        .font(.caption)
-                }
-                if let grade = plan.routeGradeText {
-                    LabeledContent("グレード", value: grade)
-                        .font(.caption)
-                }
-                if plan.routeIsRoundTrip == false {
-                    Label("往復ではないルートです。車の回収方法を確認してください。",
-                          systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-            }
-
-            Button {
-                isEditingCourseTime = true
-            } label: {
-                LabeledContent(
-                    "標準コースタイム（往復）",
-                    value: plan.courseTimeSeconds > 0
-                        ? TrackStatistics.hourMinuteText(plan.courseTimeSeconds)
-                        : "未設定"
-                )
-            }
-            .alert("標準コースタイム", isPresented: $isEditingCourseTime) {
-                courseTimeInput
-            } message: {
-                Text("ガイドブックや登山地図に載っている往復の時間を、分単位で入力してください。")
-            }
-
-            Picker("ペース", selection: $plan.pace) {
-                ForEach(HikePace.allCases) { pace in
-                    Text("\(pace.label)（\(pace.detail)）").tag(pace)
-                }
-            }
-
-            if plan.courseTimeSeconds > 0 {
-                LabeledContent(
-                    "あなたのペースでの行動時間",
-                    value: TrackStatistics.hourMinuteText(plan.courseTimeSeconds * plan.pace.rawValue)
-                )
-                .fontWeight(.medium)
-            }
-        } header: {
-            Text("行動時間")
-        } footer: {
-            Text(courseTimeFooter)
-        }
-    }
-
-    private var courseTimeFooter: String {
-        guard plan.courseTimeSeconds > 0 else {
-            return "登山口を選ぶと、標高差からおおよその時間を自動で入れます。"
-        }
-        if plan.courseTimeSource.needsCaution {
-            return "⚠️ \(plan.courseTimeSource.label)です。標高差だけで計算しており水平距離を考慮していないため、"
-                + "なだらかに長く歩く山では短く出ます。"
-                + (availableRoutes.isEmpty
-                   ? "ガイドブックの値が分かるなら上書きしてください。"
-                   : "上の登山ルートから選ぶと、公表されている標準コースタイムを使えます。")
-        }
-        if plan.courseTimeSource == .researched {
-            return "出典: 十県一山域の日本百名山「登山ルートグレーディング」一覧表（各県公表）。"
-        }
-        return plan.courseTimeSource.label + "を使っています。"
-    }
-
-    @ViewBuilder
-    private var courseTimeInput: some View {
-        TextField(
-            "分",
-            value: Binding(
-                get: { Int(plan.courseTimeSeconds / 60) },
-                set: {
-                    plan.courseTimeSeconds = TimeInterval($0 * 60)
-                    plan.courseTimeSource = .manual
-                }
-            ),
-            format: .number
-        )
-        .keyboardType(.numberPad)
-        Button("OK") {}
-        Button("キャンセル", role: .cancel) {}
-    }
-
-    // MARK: - 移動
-
-    @ViewBuilder
-    private var driveSection: some View {
-        Section {
-            if isCalculatingRoute {
-                HStack { ProgressView(); Text("経路を計算中…").foregroundStyle(.secondary) }
-            } else if let seconds = plan.driveTimeSeconds {
-                LabeledContent("移動時間", value: TrackStatistics.hourMinuteText(seconds))
-                if let distance = plan.driveDistance {
-                    LabeledContent("距離", value: String(format: "%.1f km", distance / 1000))
-                }
-                if let names = plan.highwayNamesText, !names.isEmpty {
-                    LabeledContent("通る高速道路", value: names)
-                }
-                if let toll = plan.tollEstimate {
-                    Button {
-                        isEditingToll = true
-                    } label: {
-                        LabeledContent(
-                            toll.isManual ? "高速料金" : "高速料金（概算）",
-                            value: toll.amountText
-                        )
-                    }
-                    .alert("高速料金", isPresented: $isEditingToll) { tollInput } message: {
-                        Text("ドラぷら等で調べた金額を円単位で入力すると、概算を上書きできます。")
-                    }
-                }
-                Link(destination: TollEstimate.driveplazaURL) {
-                    Label("ドラぷらで正確な料金を調べる", systemImage: "arrow.up.right.square")
-                }
-            } else if let routeError {
-                Text(routeError).font(.callout).foregroundStyle(.secondary)
-            } else {
-                Text("出発地と登山口を設定すると計算します。")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-        } header: {
-            Text("移動（自家用車）")
-        } footer: {
-            if plan.tollEstimate?.isManual == false {
-                Text("高速料金は普通車の対距離料金（24.6円/km＋150円）からの概算です。"
-                     + "NEXCO は料金を取得できる公開APIを提供していないため、"
-                     + "深夜割引・休日割引・大都市近郊区間の割増は反映されません。")
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var tollInput: some View {
-        TextField(
-            "円",
-            value: Binding(
-                get: { plan.tollAmountOverride ?? plan.tollEstimate?.amount ?? 0 },
-                set: { plan.tollAmountOverride = $0 }
-            ),
-            format: .number
-        )
-        .keyboardType(.numberPad)
-        Button("OK") {}
-        Button("概算に戻す", role: .destructive) { plan.tollAmountOverride = nil }
-        Button("キャンセル", role: .cancel) {}
-    }
 
     // MARK: - 処理
 

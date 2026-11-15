@@ -76,13 +76,26 @@ struct PlanListView: View {
                 .foregroundStyle(.secondary)
 
             if let schedule = plan.schedule(), plan.courseTimeSeconds > 0 {
-                HStack(spacing: 4) {
-                    Image(systemName: "car.fill")
-                    Text("出発 " + schedule.leaveHomeAt.formatted(date: .omitted, time: .shortened))
-                        .monospacedDigit()
+                // 移動時間が分からないうちは出発時刻を出さない。
+                // 間に合わない計画を信じてしまう危険があるため。
+                if plan.driveTimeSeconds != nil {
+                    HStack(spacing: 4) {
+                        Image(systemName: "car.fill")
+                        Text("出発 " + schedule.leaveHomeAt.formatted(date: .omitted, time: .shortened))
+                            .monospacedDigit()
+                    }
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.blue)
+                } else {
+                    HStack(spacing: 4) {
+                        Image(systemName: "figure.hiking")
+                        Text("歩き出す "
+                             + schedule.startHikingAt.formatted(date: .omitted, time: .shortened))
+                            .monospacedDigit()
+                    }
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.green)
                 }
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.blue)
             } else {
                 Text("未入力: " + plan.missingPieces.joined(separator: "、"))
                     .font(.caption)
