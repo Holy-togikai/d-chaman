@@ -107,13 +107,13 @@ final class HikePlan {
         return max(0, summitElevation - trailheadElevation)
     }
 
-    /// 高速料金。手入力があればそれを、無ければ距離からの概算を返します。
-    var tollEstimate: TollEstimate? {
+    /// 高速料金。手入力があればそれを、無ければ距離と車種からの概算を返します。
+    func tollEstimate(for vehicle: VehicleClass) -> TollEstimate? {
         if let tollAmountOverride {
             return TollEstimate(manualAmount: tollAmountOverride)
         }
         guard let estimatedHighwayDistance, estimatedHighwayDistance > 0 else { return nil }
-        return TollEstimate(highwayDistance: estimatedHighwayDistance)
+        return TollEstimate(highwayDistance: estimatedHighwayDistance, vehicle: vehicle)
     }
 
     /// 逆算した時刻。登山口と移動時間が未設定でも、分かる範囲で計算します。

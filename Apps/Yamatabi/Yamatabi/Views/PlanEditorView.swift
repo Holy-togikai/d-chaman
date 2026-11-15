@@ -9,6 +9,7 @@ struct PlanEditorView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @StateObject private var locationProvider = CurrentLocationProvider()
+    @ObservedObject private var settings = UserSettings.shared
 
     @State private var weather: [DailyWeather] = []
     @State private var weatherError: String?
@@ -48,7 +49,10 @@ struct PlanEditorView: View {
             }
         }
         .sheet(isPresented: $isSearchingOrigin) {
-            PlaceSearchView(center: plan.summitCoordinate) { name, coordinate in
+            PlaceSearchView(
+                center: plan.summitCoordinate,
+                initialQuery: settings.homeName ?? ""
+            ) { name, coordinate in
                 plan.originName = name
                 plan.originLatitude = coordinate.latitude
                 plan.originLongitude = coordinate.longitude
@@ -122,7 +126,18 @@ struct PlanEditorView: View {
     // MARK: - 出発地
 
     private var originSection: some View {
-        Section("出発地") {
+        Section {
+            if let homeName = settings.homeName, let home = settings.homeCoordinate {
+                Button {
+                    plan.originName = homeName
+                    plan.originLatitude = home.latitude
+                    plan.originLongitude = home.longitude
+                    Task { await calculateRoute() }
+                } label: {
+                    Label("自宅から（\(homeName)）", systemImage: "house.fill")
+                }
+            }
+
             Button {
                 Task { await useCurrentLocation() }
             } label: {
@@ -150,6 +165,19 @@ struct PlanEditorView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
             }
+
+            // 出発地が決まっていて、まだ自宅を登録していないなら、ここで登録できるようにする。
+            if let name = plan.originName,
+               let coordinate = plan.originCoordinate,
+               !settings.hasHome {
+                Button {
+                    settings.setHome(name: name, coordinate: coordinate)
+                } label: {
+                    Label("この出発地を自宅として登録", systemImage: "house.badge.plus")
+                }
+            }
+        } header: {
+            Text("出発地")
         }
     }
 

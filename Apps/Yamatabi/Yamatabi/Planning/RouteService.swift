@@ -27,6 +27,7 @@ struct DriveEstimate: Equatable {
 ///
 /// NEXCO は料金を取得できる公開APIを提供していないため、距離から見積もっています。
 /// **割引（深夜・休日・ETC）や大都市近郊区間の割増は反映されません。**
+/// 車種は普通車を基準に、軽自動車・中型車を倍率で近似しています。
 /// 正確な金額は「ドラぷら」等で確認してください。
 struct TollEstimate: Equatable {
     let amount: Int
@@ -46,14 +47,15 @@ struct TollEstimate: Equatable {
     /// 1回の利用ごとに加算される固定額（円）。
     static let terminalCharge = 150.0
 
-    init(highwayDistance: Double) {
+    init(highwayDistance: Double, vehicle: VehicleClass = .standard) {
         distance = highwayDistance
         isManual = false
         guard highwayDistance > 0 else {
             amount = 0
             return
         }
-        let raw = (highwayDistance / 1000 * Self.ratePerKilometer + Self.terminalCharge) * 1.1
+        let raw = (highwayDistance / 1000 * Self.ratePerKilometer + Self.terminalCharge)
+            * 1.1 * vehicle.tollMultiplier
         // 実際の料金は50円単位なので、それに合わせて丸める。
         amount = Int((raw / 50).rounded() * 50)
     }
