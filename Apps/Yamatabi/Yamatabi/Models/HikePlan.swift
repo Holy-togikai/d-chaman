@@ -53,6 +53,15 @@ final class HikePlan {
     /// 往復できるルートか。違う場合は車の回収方法を考える必要があります。
     var routeIsRoundTrip: Bool?
 
+    // --- 山ごはん ---
+    /// 選んだレシピのID。カンマ区切りで持ちます。
+    /// 配列をそのまま持つより、保存の形が単純で移行に強いためです。
+    var recipeIDsText: String?
+    /// 何人ぶん作るか。
+    var mealServings: Int = 2
+    /// 買い物を済ませた材料のID。材料で覚えるので、レシピを選び直しても消えません。
+    var purchasedIngredientIDsText: String?
+
     // --- 移動（計算結果のキャッシュ。経路計算は通信を伴うため毎回は行わない）---
     var driveTimeSeconds: TimeInterval?
     var driveDistance: Double?
@@ -129,6 +138,22 @@ final class HikePlan {
                 driveTime: driveTimeSeconds ?? 0
             )
         )
+    }
+
+    /// 選んだレシピ。
+    var recipes: [Recipe] {
+        get {
+            (recipeIDsText ?? "")
+                .split(separator: ",")
+                .compactMap { RecipeData.recipe(id: String($0)) }
+        }
+        set { recipeIDsText = newValue.map(\.id).joined(separator: ",") }
+    }
+
+    /// 買い物を済ませた材料。
+    var purchasedIngredientIDs: Set<String> {
+        get { Set((purchasedIngredientIDsText ?? "").split(separator: ",").map(String.init)) }
+        set { purchasedIngredientIDsText = newValue.sorted().joined(separator: ",") }
     }
 
     /// 選んだルートの要約。「体力度5 ・ 難易度B ・ 18.1km」
