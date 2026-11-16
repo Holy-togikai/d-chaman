@@ -5,8 +5,8 @@ struct PlanDriveSection: View {
     @Bindable var plan: HikePlan
     let isCalculating: Bool
     let errorMessage: String?
-
-    @State private var isEditingToll = false
+    /// 高速料金の手入力。表示は親に任せる（Section に付けると行ごとに増えてしまうため）。
+    let onEditToll: () -> Void
 
     var body: some View {
         Section {
@@ -46,38 +46,15 @@ struct PlanDriveSection: View {
             LabeledContent("通る高速道路", value: names)
         }
         if let toll = plan.tollEstimate {
-            Button {
-                isEditingToll = true
-            } label: {
+            Button(action: onEditToll) {
                 LabeledContent(
                     toll.isManual ? "高速料金" : "高速料金（概算）",
                     value: toll.amountText
                 )
             }
-            .alert("高速料金", isPresented: $isEditingToll) {
-                tollInput
-            } message: {
-                Text("ドラぷら等で調べた金額を円単位で入力すると、概算を上書きできます。")
-            }
         }
         Link(destination: TollEstimate.driveplazaURL) {
             Label("ドラぷらで正確な料金を調べる", systemImage: "arrow.up.right.square")
         }
-    }
-
-    @ViewBuilder
-    private var tollInput: some View {
-        TextField(
-            "円",
-            value: Binding(
-                get: { plan.tollAmountOverride ?? plan.tollEstimate?.amount ?? 0 },
-                set: { plan.tollAmountOverride = $0 }
-            ),
-            format: .number
-        )
-        .keyboardType(.numberPad)
-        Button("OK") {}
-        Button("概算に戻す", role: .destructive) { plan.tollAmountOverride = nil }
-        Button("キャンセル", role: .cancel) {}
     }
 }
