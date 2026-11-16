@@ -40,17 +40,16 @@ struct PlanListView: View {
             }
             .overlay {
                 if plans.isEmpty {
-                    ContentUnavailableView(
-                        "計画がありません",
-                        systemImage: "calendar",
-                        description: Text("右上の＋から、登る山と日付を決めて計画を作れます。")
+                    EmptyStateView(
+                        title: "計画がありません",
+                        message: "右上の＋から、登る山と日付を決めて計画を作れます。",
+                        systemImage: "calendar"
                     )
                 }
             }
             .sheet(isPresented: $isChoosingMountain) {
-                MountainListView(mountains: mountains) { mountain in
+                MountainFinderView(mountains: mountains) { mountain in
                     create(for: mountain)
-                    isChoosingMountain = false
                 }
             }
             .navigationDestination(item: $newPlan) { plan in
@@ -67,7 +66,7 @@ struct PlanListView: View {
                 if plan.missingPieces.isEmpty {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.caption)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(Color.brandGreen)
                 }
             }
 
@@ -94,7 +93,7 @@ struct PlanListView: View {
                             .monospacedDigit()
                     }
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Color.brandGreen)
                 }
             } else {
                 Text("未入力: " + plan.missingPieces.joined(separator: "、"))

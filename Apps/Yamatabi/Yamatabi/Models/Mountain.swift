@@ -22,11 +22,27 @@ struct Mountain: Identifiable, Hashable, Codable {
     let longitude: Double
     /// 日本百名山に数えられる山か。副峰にも同じ値が入ります。
     let isHyakumeizan: Bool
+    /// 深田久弥の呼称。地理院の登録名と異なることがあります（例: 白根山 → 日光白根山）。
+    let hyakumeizanName: String?
+    /// 百名山1座を代表する地点か。一覧をちょうど100件で出すために使います。
+    let isHyakumeizanPeak: Bool
 
     /// 画面に出す名前。副峰は「蔵王山（熊野岳）」のように括弧を添えます。
     var displayName: String {
         guard let peak else { return name }
         return "\(name)（\(peak)）"
+    }
+
+    /// 百名山の一覧で使う名前。深田の呼称を優先します。
+    /// 「日光白根山」を探している人に「白根山」とだけ出すと、草津白根山と見分けが付かないため。
+    var hyakumeizanDisplayName: String {
+        hyakumeizanName ?? displayName
+    }
+
+    /// 深田の呼称が地理院の登録名と違う場合に、元の名前を添えるための文字列。
+    var hyakumeizanSubtitle: String? {
+        guard let hyakumeizanName, hyakumeizanName != name else { return nil }
+        return "地理院の登録名: \(displayName)"
     }
 
     var coordinate: CLLocationCoordinate2D {
@@ -44,6 +60,7 @@ struct Mountain: Identifiable, Hashable, Codable {
         guard !trimmed.isEmpty else { return true }
         return name.contains(trimmed)
             || (peak?.contains(trimmed) ?? false)
+            || (hyakumeizanName?.contains(trimmed) ?? false)
             || kana.contains(trimmed)
             || prefectures.contains { $0.contains(trimmed) }
     }

@@ -10,7 +10,7 @@ import sys
 # 地理院側の表記ゆれ（五竜→五龍 など）は別名を並べて吸収する。
 HYAKUMEIZAN_BY_NAME = [
     ["利尻山"], ["羅臼岳"], ["斜里岳"], ["雌阿寒岳"],
-    ["大雪山（ヌタプカウシペ）", "大雪山"], ["トムラウシ山"],
+    ["大雪山", "大雪山（ヌタプカウシペ）"], ["トムラウシ山"],
     ["十勝岳"], ["幌尻岳"], ["羊蹄山"],
     ["岩木山"], ["八甲田山"], ["八幡平"], ["岩手山"], ["早池峰山"],
     ["鳥海山"], ["月山"], ["蔵王山"], ["飯豊山"],
@@ -87,6 +87,8 @@ def main(src, dst):
     # --- 1周目: 百名山に当たる地点を見つけ、その山（索引番号のまとまり）を控える ---
     matched_groups = {}   # 索引番号の基部 -> 百名山としての呼び名
     matched_peaks = set()
+    # 百名山1座につき、代表とする地点（最高峰）を1つ選ぶための記録。
+    representative = {}   # 呼び名 -> (標高, 索引番号)
 
     for feature in features:
         props = feature["properties"]
@@ -101,6 +103,10 @@ def main(src, dst):
         if peak:
             matched_groups[index_group(props["索引番号"])] = peak
             matched_peaks.add(peak)
+            # 同じ山に複数の地点があるときは、標高がいちばん高いものを代表にする。
+            best = representative.get(peak)
+            if best is None or elevation > best[0]:
+                representative[peak] = (elevation, str(props["索引番号"]))
 
     # --- 2周目: 変換する。副峰（蔵王山＜刈田岳＞など）も同じ山として扱う ---
     mountains = []
@@ -109,6 +115,8 @@ def main(src, dst):
         raw_name = props["山名＜山頂名＞"]
         name, peak_name = split_name(raw_name)
 
+        group = index_group(props["索引番号"])
+        hyakumeizan_name = matched_groups.get(group)
         mountains.append({
             "id": str(props["索引番号"]),
             "name": strip_alias(name),
@@ -118,7 +126,14 @@ def main(src, dst):
             "prefectures": props["都道府県"].split(),
             "latitude": float(props["緯度"]),
             "longitude": float(props["経度"]),
-            "isHyakumeizan": index_group(props["索引番号"]) in matched_groups,
+            "isHyakumeizan": hyakumeizan_name is not None,
+            # 深田久弥の呼称。地理院の登録名と異なることがある（例: 白根山→日光白根山）。
+            "hyakumeizanName": hyakumeizan_name,
+            # 百名山1座を代表する地点か。一覧を100件ちょうどで出すために使う。
+            "isHyakumeizanPeak": (
+                hyakumeizan_name is not None
+                and representative.get(hyakumeizan_name, (None, None))[1] == str(props["索引番号"])
+            ),
         })
 
     # 標高の高い順。アプリ側で毎回並べ替えずに済む。
@@ -137,6 +152,7 @@ def main(src, dst):
     print(f"照合できた百名山: {len(matched_peaks)}/{len(expected)}")
     print(f"百名山フラグの地点数: {sum(1 for m in mountains if m['isHyakumeizan'])}"
           f"（副峰を含むため100より多い）")
+    print(f"百名山の代表地点: {sum(1 for m in mountains if m['isHyakumeizanPeak'])} 件")
     if unmatched:
         print(f"未照合 ({len(unmatched)}): " + "、".join(unmatched))
     else:
