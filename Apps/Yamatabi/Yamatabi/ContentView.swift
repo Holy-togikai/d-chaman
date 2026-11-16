@@ -38,17 +38,11 @@ struct ContentView: View {
         // ZStack の子として重ねると、地図側のビューと重なってタップが届かなくなるため。
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 6) {
-                HStack {
-                    attribution
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-
                 RecordingPanel(
                     state: tracker.state,
                     statistics: tracker.statistics,
                     mountainName: tracker.state == .idle ? selected?.name : tracker.mountainName,
-                    onStart: { tracker.start(mountainName: selected?.name) },
+                    onStart: { tracker.start(mountainName: selected?.displayName, mountainID: selected?.id) },
                     onPause: tracker.pause,
                     onResume: tracker.resume,
                     onFinish: { isConfirmingFinish = true }
@@ -56,9 +50,8 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $isSearching) {
-            MountainListView(mountains: mountains) { mountain in
+            MountainFinderView(mountains: mountains) { mountain in
                 selected = mountain
-                isSearching = false
             }
         }
         .sheet(isPresented: $isShowingRecords) {
@@ -152,18 +145,6 @@ struct ContentView: View {
         .padding(.top, 8)
     }
 
-    /// 出典表示。地理院タイルの利用条件として明示が必要です。消さないでください。
-    private var attribution: some View {
-        Link(destination: URL(string: "https://maps.gsi.go.jp/development/ichiran.html")!) {
-            Text("地理院タイル")
-                .font(.caption2)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
-        }
-        .tint(.secondary)
-    }
-
     // MARK: - 保存
 
     private func finishAndSave() {
@@ -174,6 +155,7 @@ struct ContentView: View {
 
         let record = HikeRecord(
             mountainName: result.mountainName,
+            mountainID: result.mountainID,
             startedAt: result.startedAt,
             endedAt: Date(),
             points: result.points,
@@ -187,99 +169,6 @@ struct ContentView: View {
         } catch {
             saveFailureMessage = "保存時にエラーが発生しました（\(error.localizedDescription)）"
         }
-    }
-}
-
-/// 山を名前・かな・都道府県で絞り込んで選ぶ画面。
-struct MountainListView: View {
-    let mountains: [Mountain]
-    let onSelect: (Mountain) -> Void
-
-    @State private var query = ""
-    /// 百名山だけに絞り込むか。1,000地点あるので、目的から探せるようにしておく。
-    @State private var onlyHyakumeizan = false
-    @Environment(\.dismiss) private var dismiss
-
-    private var results: [Mountain] {
-        // データは標高の高い順に並んだ状態で読み込んでいるので、並べ替えは不要。
-        mountains.filter { mountain in
-            (!onlyHyakumeizan || mountain.isHyakumeizan) && mountain.matches(query)
-        }
-    }
-
-    var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    Toggle("日本百名山だけ", isOn: $onlyHyakumeizan)
-                        .font(.subheadline)
-                }
-
-                Section {
-                    ForEach(results) { mountain in
-                        Button { onSelect(mountain) } label: { row(mountain) }
-                            .tint(.primary)
-                    }
-                } header: {
-                    Text("\(results.count) 件")
-                } footer: {
-                    attributionFooter
-                }
-            }
-            .searchable(text: $query, prompt: "山名・ふりがな・都道府県")
-            .navigationTitle("山を探す")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("閉じる") { dismiss() }
-                }
-            }
-            .overlay {
-                if results.isEmpty {
-                    ContentUnavailableView.search(text: query)
-                }
-            }
-        }
-    }
-
-    private func row(_ mountain: Mountain) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(mountain.displayName)
-                        .font(.body.weight(.medium))
-                        .lineLimit(1)
-                    if mountain.isHyakumeizan {
-                        Text("百名山")
-                            .font(.caption2.weight(.semibold))
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(Color.green.opacity(0.18), in: Capsule())
-                            .foregroundStyle(.green)
-                    }
-                }
-                Text(mountain.prefectureText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Text("\(mountain.elevation)m")
-                .font(.subheadline.monospacedDigit())
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    /// 山岳データの出典。利用条件として明示が必要です。消さないでください。
-    private var attributionFooter: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("山岳データ出典")
-            Link(
-                "国土地理院「日本の主な山岳標高」",
-                destination: URL(string: "https://www.gsi.go.jp/kihonjohochousa/kihonjohochousa41139.html")!
-            )
-        }
-        .font(.caption2)
-        .padding(.top, 8)
     }
 }
 

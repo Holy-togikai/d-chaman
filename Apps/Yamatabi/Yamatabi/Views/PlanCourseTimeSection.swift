@@ -3,14 +3,14 @@ import SwiftUI
 /// 行動時間（ルート選択・標準コースタイム・ペース）のセクション。
 struct PlanCourseTimeSection: View {
     @Bindable var plan: HikePlan
+    /// この山について調査済みのルート。親から渡します。
+    let availableRoutes: [CourseRoute]
 
-    @State private var isPickingRoute = false
-    @State private var isEditingCourseTime = false
-
-    /// この山について調査済みのルート。
-    private var availableRoutes: [CourseRoute] {
-        CourseRouteData.routes(for: plan.mountainID)
-    }
+    // シートやアラートの表示は親（PlanEditorView）に任せる。
+    // Form の Section に付けた表示系の修飾子は各行に配られてしまい、
+    // 同じフラグに束縛された画面が同時に複数立ち上がって navigation が壊れるため。
+    let onPickRoute: () -> Void
+    let onEditCourseTime: () -> Void
 
     var body: some View {
         Section {
@@ -18,20 +18,13 @@ struct PlanCourseTimeSection: View {
                 routeRows
             }
 
-            Button {
-                isEditingCourseTime = true
-            } label: {
+            Button(action: onEditCourseTime) {
                 LabeledContent(
                     "標準コースタイム（往復）",
                     value: plan.courseTimeSeconds > 0
                         ? TrackStatistics.hourMinuteText(plan.courseTimeSeconds)
                         : "未設定"
                 )
-            }
-            .alert("標準コースタイム", isPresented: $isEditingCourseTime) {
-                courseTimeInput
-            } message: {
-                Text("ガイドブックや登山地図に載っている往復の時間を、分単位で入力してください。")
             }
 
             Picker("ペース", selection: $plan.pace) {
@@ -52,18 +45,11 @@ struct PlanCourseTimeSection: View {
         } footer: {
             Text(footerText)
         }
-        .sheet(isPresented: $isPickingRoute) {
-            RoutePickerView(routes: availableRoutes) { route in
-                plan.apply(route: route)
-            }
-        }
     }
 
     @ViewBuilder
     private var routeRows: some View {
-        Button {
-            isPickingRoute = true
-        } label: {
+        Button(action: onPickRoute) {
             LabeledContent(
                 "登山ルート",
                 value: plan.routeName ?? "選ぶ（\(availableRoutes.count)件）"
@@ -100,23 +86,5 @@ struct PlanCourseTimeSection: View {
             return "出典: 十県一山域の日本百名山「登山ルートグレーディング」一覧表（各県公表）。"
         }
         return plan.courseTimeSource.label + "を使っています。"
-    }
-
-    @ViewBuilder
-    private var courseTimeInput: some View {
-        TextField(
-            "分",
-            value: Binding(
-                get: { Int(plan.courseTimeSeconds / 60) },
-                set: {
-                    plan.courseTimeSeconds = TimeInterval($0 * 60)
-                    plan.courseTimeSource = .manual
-                }
-            ),
-            format: .number
-        )
-        .keyboardType(.numberPad)
-        Button("OK") {}
-        Button("キャンセル", role: .cancel) {}
     }
 }

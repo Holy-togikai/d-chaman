@@ -12,6 +12,12 @@ final class HikeRecord {
     var id: UUID = UUID()
     /// 登った山の名前。山を選ばずに記録を始めた場合は nil。
     var mountainName: String?
+    /// 登った山の地理院ID。
+    ///
+    /// 名前だけでは山を特定できません（同じ基本名の山が85件あり、「駒ヶ岳」は4座あります）。
+    /// ヒストリーから山を引き直すために残します。
+    /// この項目を足す前に保存した記録は nil のままです。
+    var mountainID: String?
     var startedAt: Date = Date()
     var endedAt: Date?
 
@@ -27,6 +33,7 @@ final class HikeRecord {
 
     init(
         mountainName: String?,
+        mountainID: String?,
         startedAt: Date,
         endedAt: Date?,
         points: [TrackPoint],
@@ -34,6 +41,7 @@ final class HikeRecord {
     ) {
         self.id = UUID()
         self.mountainName = mountainName
+        self.mountainID = mountainID
         self.startedAt = startedAt
         self.endedAt = endedAt
         self.points = points

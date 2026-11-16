@@ -17,6 +17,12 @@ struct PlanEditorView: View {
 
     @State private var isPickingParking = false
     @State private var isSearchingOrigin = false
+    // 計画画面の表示系は、すべてここ（Form 直下）にまとめる。
+    // Section に付けると Form が行ごとに配ってしまい、同じフラグの画面が
+    // 同時に複数立ち上がって navigation が壊れる。
+    @State private var isPickingRoute = false
+    @State private var isEditingCourseTime = false
+    @State private var isEditingToll = false
 
     @State private var routeError: String?
     @State private var isCalculatingRoute = false
@@ -27,7 +33,12 @@ struct PlanEditorView: View {
             dateSection
             trailheadSection
             originSection
-            PlanCourseTimeSection(plan: plan)
+            PlanCourseTimeSection(
+                plan: plan,
+                availableRoutes: availableRoutes,
+                onPickRoute: { isPickingRoute = true },
+                onEditCourseTime: { isEditingCourseTime = true }
+            )
             PlanScheduleSection(plan: plan)
             PlanWeatherSection(
                 forecast: weather,
@@ -38,11 +49,27 @@ struct PlanEditorView: View {
             PlanDriveSection(
                 plan: plan,
                 isCalculating: isCalculatingRoute,
-                errorMessage: routeError
+                errorMessage: routeError,
+                onEditToll: { isEditingToll = true }
             )
         }
         .navigationTitle(plan.mountainName)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $isPickingRoute) {
+            RoutePickerView(routes: availableRoutes) { route in
+                plan.apply(route: route)
+            }
+        }
+        .alert("標準コースタイム", isPresented: $isEditingCourseTime) {
+            courseTimeInput
+        } message: {
+            Text("ガイドブックや登山地図に載っている往復の時間を、分単位で入力してください。")
+        }
+        .alert("高速料金", isPresented: $isEditingToll) {
+            tollInput
+        } message: {
+            Text("ドラぷら等で調べた金額を円単位で入力すると、概算を上書きできます。")
+        }
         .sheet(isPresented: $isPickingParking) {
             ParkingPickerView(summit: plan.summitCoordinate) { spot in
                 applyTrailhead(name: spot.name, coordinate: spot.coordinate)
@@ -182,6 +209,50 @@ struct PlanEditorView: View {
     }
 
     // MARK: - コースタイム
+
+    // MARK: - 入力欄
+
+    /// この山について調査済みのルート。
+    private var availableRoutes: [CourseRoute] {
+        CourseRouteData.routes(for: plan.mountainID)
+    }
+
+    @ViewBuilder
+    private var courseTimeInput: some View {
+        TextField(
+            "分",
+            value: Binding(
+                get: { Int(plan.courseTimeSeconds / 60) },
+                set: {
+                    plan.courseTimeSeconds = TimeInterval($0 * 60)
+                    plan.courseTimeSource = .manual
+                }
+            ),
+            format: .number
+        )
+        .keyboardType(.numberPad)
+        Button("OK") {}
+        Button("キャンセル", role: .cancel) {}
+    }
+
+    @ViewBuilder
+    private var tollInput: some View {
+        TextField(
+            "円",
+            value: Binding(
+                get: {
+                    plan.tollAmountOverride
+                        ?? plan.tollEstimate(for: settings.vehicleClass)?.amount ?? 0
+                },
+                set: { plan.tollAmountOverride = $0 }
+            ),
+            format: .number
+        )
+        .keyboardType(.numberPad)
+        Button("OK") {}
+        Button("概算に戻す", role: .destructive) { plan.tollAmountOverride = nil }
+        Button("キャンセル", role: .cancel) {}
+    }
 
     // MARK: - 処理
 

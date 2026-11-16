@@ -29,6 +29,8 @@ final class LocationTracker: NSObject, ObservableObject {
 
     /// 記録対象の山。開始時に指定します。
     private(set) var mountainName: String?
+    /// 記録対象の山の地理院ID。あとから山を引き直すために残します。
+    private(set) var mountainID: String?
     private(set) var startedAt: Date?
 
     private let manager = CLLocationManager()
@@ -64,8 +66,9 @@ final class LocationTracker: NSObject, ObservableObject {
     // MARK: - 操作
 
     /// 記録を開始する。権限が未確認なら、先に許可を求めます。
-    func start(mountainName: String?) {
+    func start(mountainName: String?, mountainID: String?) {
         self.mountainName = mountainName
+        self.mountainID = mountainID
         problem = nil
 
         switch authorizationStatus {
@@ -109,6 +112,7 @@ final class LocationTracker: NSObject, ObservableObject {
         let statistics: TrackStatistics
         let startedAt: Date
         let mountainName: String?
+        let mountainID: String?
     }
 
     /// 記録を終了し、保存用のデータを返す。返り値が nil なら、保存に値する軌跡がなかった場合。
@@ -130,7 +134,8 @@ final class LocationTracker: NSObject, ObservableObject {
             points: points,
             statistics: finalStats,
             startedAt: startedAt,
-            mountainName: mountainName
+            mountainName: mountainName,
+            mountainID: mountainID
         )
     }
 
@@ -175,6 +180,7 @@ final class LocationTracker: NSObject, ObservableObject {
         statistics = .zero
         startedAt = nil
         mountainName = nil
+        mountainID = nil
         pausedTotal = 0
         pausedAt = nil
         startWhenAuthorized = false

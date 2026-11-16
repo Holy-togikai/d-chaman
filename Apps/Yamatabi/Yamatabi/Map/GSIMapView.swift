@@ -42,6 +42,11 @@ struct GSIMapView: UIViewRepresentable {
         }
         context.coordinator.apply(tile: tile, to: mapView)
 
+        // 出典表示は地図そのものに持たせる。
+        // 呼び出し側に任せると付け忘れが起きるが、地理院タイルの利用条件では
+        // 出典の明示が必須のため、省けない場所に置く。
+        addAttribution(to: mapView)
+
         let longPress = UILongPressGestureRecognizer(
             target: context.coordinator,
             action: #selector(Coordinator.handleLongPress(_:))
@@ -121,6 +126,41 @@ struct GSIMapView: UIViewRepresentable {
         Coordinator()
     }
 
+    /// 「地理院タイル」の出典を地図の左下に重ねる。タップすると一覧ページを開く。
+    private func addAttribution(to mapView: MKMapView) {
+        var configuration = UIButton.Configuration.plain()
+        configuration.title = "地理院タイル"
+        configuration.baseForegroundColor = .secondaryLabel
+        configuration.background.backgroundColor = .systemBackground.withAlphaComponent(0.75)
+        configuration.background.cornerRadius = 4
+        configuration.contentInsets = NSDirectionalEdgeInsets(
+            top: 2, leading: 5, bottom: 2, trailing: 5
+        )
+        configuration.titleTextAttributesTransformer = .init { attributes in
+            var updated = attributes
+            updated.font = .systemFont(ofSize: 10)
+            return updated
+        }
+        let button = UIButton(configuration: configuration)
+        button.addAction(
+            UIAction { _ in
+                guard let url = URL(string: "https://maps.gsi.go.jp/development/ichiran.html") else {
+                    return
+                }
+                UIApplication.shared.open(url)
+            },
+            for: .touchUpInside
+        )
+        button.translatesAutoresizingMaskIntoConstraints = false
+        mapView.addSubview(button)
+        NSLayoutConstraint.activate([
+            button.leadingAnchor.constraint(equalTo: mapView.safeAreaLayoutGuide.leadingAnchor,
+                                            constant: 8),
+            button.bottomAnchor.constraint(equalTo: mapView.safeAreaLayoutGuide.bottomAnchor,
+                                           constant: -8)
+        ])
+    }
+
     /// MKMapView からの通知を受け取る係。
     final class Coordinator: NSObject, MKMapViewDelegate {
         private(set) var currentTile: GSITile?
@@ -194,7 +234,7 @@ struct GSIMapView: UIViewRepresentable {
                     as? MKMarkerAnnotationView
                     ?? MKMarkerAnnotationView(annotation: cluster, reuseIdentifier: identifier)
                 view.annotation = cluster
-                view.markerTintColor = .systemGreen
+                view.markerTintColor = UIColor(resource: .brandGreen)
                 // まとめた中に百名山があれば、その数を出して目印にする。
                 view.glyphText = "\(cluster.memberAnnotations.count)"
                 view.displayPriority = .defaultHigh
@@ -220,7 +260,7 @@ struct GSIMapView: UIViewRepresentable {
             // 百名山は濃い緑＋塗りつぶしのアイコンで目立たせ、
             // それ以外は控えめにして、地図の情報量を抑える。
             if mountain.mountain.isHyakumeizan {
-                view.markerTintColor = .systemGreen
+                view.markerTintColor = UIColor(resource: .brandGreen)
                 view.glyphImage = UIImage(systemName: "mountain.2.fill")
                 // 混み合ったときは百名山を優先して残す。
                 view.displayPriority = .required
