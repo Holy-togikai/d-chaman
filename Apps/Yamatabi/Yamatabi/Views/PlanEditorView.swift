@@ -61,12 +61,12 @@ struct PlanEditorView: View {
             }
         }
         .alert("標準コースタイム", isPresented: $isEditingCourseTime) {
-            courseTimeInput
+            PlanCourseTimeInput(plan: plan)
         } message: {
             Text("ガイドブックや登山地図に載っている往復の時間を、分単位で入力してください。")
         }
         .alert("高速料金", isPresented: $isEditingToll) {
-            tollInput
+            PlanTollInput(plan: plan, vehicle: settings.vehicleClass)
         } message: {
             Text("ドラぷら等で調べた金額を円単位で入力すると、概算を上書きできます。")
         }
@@ -215,43 +215,6 @@ struct PlanEditorView: View {
     /// この山について調査済みのルート。
     private var availableRoutes: [CourseRoute] {
         CourseRouteData.routes(for: plan.mountainID)
-    }
-
-    @ViewBuilder
-    private var courseTimeInput: some View {
-        TextField(
-            "分",
-            value: Binding(
-                get: { Int(plan.courseTimeSeconds / 60) },
-                set: {
-                    plan.courseTimeSeconds = TimeInterval($0 * 60)
-                    plan.courseTimeSource = .manual
-                }
-            ),
-            format: .number
-        )
-        .keyboardType(.numberPad)
-        Button("OK") {}
-        Button("キャンセル", role: .cancel) {}
-    }
-
-    @ViewBuilder
-    private var tollInput: some View {
-        TextField(
-            "円",
-            value: Binding(
-                get: {
-                    plan.tollAmountOverride
-                        ?? plan.tollEstimate(for: settings.vehicleClass)?.amount ?? 0
-                },
-                set: { plan.tollAmountOverride = $0 }
-            ),
-            format: .number
-        )
-        .keyboardType(.numberPad)
-        Button("OK") {}
-        Button("概算に戻す", role: .destructive) { plan.tollAmountOverride = nil }
-        Button("キャンセル", role: .cancel) {}
     }
 
     // MARK: - 処理
