@@ -5,6 +5,9 @@ import SwiftUI
 struct PlaceSearchView: View {
     /// 検索の優先範囲。登山口の近くを優先しても困るので、全国を対象にします。
     let center: CLLocationCoordinate2D
+    /// 最初から入れておく検索語。自宅の住所など、見当がついている場合に使います。
+    var initialQuery: String = ""
+    var title: String = "出発地を探す"
     let onSelect: (String, CLLocationCoordinate2D) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -41,7 +44,13 @@ struct PlaceSearchView: View {
             }
             .searchable(text: $query, prompt: "住所・駅名・施設名")
             .onSubmit(of: .search) { Task { await search() } }
-            .navigationTitle("出発地を探す")
+            .task {
+                // 見当がついている場合は、開いた時点で一度検索しておく。
+                guard query.isEmpty, !initialQuery.isEmpty else { return }
+                query = initialQuery
+                await search()
+            }
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

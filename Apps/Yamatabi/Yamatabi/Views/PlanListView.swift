@@ -8,6 +8,7 @@ struct PlanListView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var isChoosingMountain = false
+    @State private var isShowingSettings = false
     @State private var newPlan: HikePlan?
 
     private let mountains = MountainData.all
@@ -37,6 +38,13 @@ struct PlanListView: View {
                         Label("計画を作る", systemImage: "plus")
                     }
                 }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        isShowingSettings = true
+                    } label: {
+                        Label("設定", systemImage: "gearshape")
+                    }
+                }
             }
             .overlay {
                 if plans.isEmpty {
@@ -46,6 +54,9 @@ struct PlanListView: View {
                         systemImage: "calendar"
                     )
                 }
+            }
+            .sheet(isPresented: $isShowingSettings) {
+                SettingsView()
             }
             .sheet(isPresented: $isChoosingMountain) {
                 MountainFinderView(mountains: mountains) { mountain in

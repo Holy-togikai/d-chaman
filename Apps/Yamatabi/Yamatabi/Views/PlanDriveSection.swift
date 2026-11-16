@@ -8,6 +8,8 @@ struct PlanDriveSection: View {
     /// 高速料金の手入力。表示は親に任せる（Section に付けると行ごとに増えてしまうため）。
     let onEditToll: () -> Void
 
+    @ObservedObject private var settings = UserSettings.shared
+
     var body: some View {
         Section {
             if isCalculating {
@@ -27,8 +29,9 @@ struct PlanDriveSection: View {
         } header: {
             Text("移動（自家用車）")
         } footer: {
-            if plan.tollEstimate?.isManual == false {
-                Text("高速料金は普通車の対距離料金（24.6円/km＋150円）からの概算です。"
+            if plan.tollEstimate(for: settings.vehicleClass)?.isManual == false {
+                Text("高速料金は\(settings.vehicleClass.label)として、"
+                     + "対距離料金（普通車 24.6円/km＋150円）から概算したものです。"
                      + "NEXCO は料金を取得できる公開APIを提供していないため、"
                      + "深夜割引・休日割引・大都市近郊区間の割増は反映されません。")
             }
@@ -45,7 +48,7 @@ struct PlanDriveSection: View {
         if let names = plan.highwayNamesText, !names.isEmpty {
             LabeledContent("通る高速道路", value: names)
         }
-        if let toll = plan.tollEstimate {
+        if let toll = plan.tollEstimate(for: settings.vehicleClass) {
             Button(action: onEditToll) {
                 LabeledContent(
                     toll.isManual ? "高速料金" : "高速料金（概算）",
