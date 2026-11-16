@@ -14,8 +14,19 @@ enum MountainData {
     /// 全1,059地点（1,003山＋副峰）。標高の高い順に並んでいます。
     static let all: [Mountain] = load()
 
-    /// 日本百名山だけを抜き出したもの。
-    static let hyakumeizan: [Mountain] = all.filter(\.isHyakumeizan)
+    /// 日本百名山の100座。1座につき代表の山頂を1つだけ含みます。
+    /// 副峰を含めた145地点が必要な場合は `all.filter(\.isHyakumeizan)` を使ってください。
+    static let hyakumeizan: [Mountain] = all.filter(\.isHyakumeizanPeak)
+
+    /// IDから山を引く。登山記録に残したIDから山を復元するのに使います。
+    static func mountain(id: String) -> Mountain? {
+        byID[id]
+    }
+
+    private static let byID: [String: Mountain] = Dictionary(
+        all.map { ($0.id, $0) },
+        uniquingKeysWith: { first, _ in first }
+    )
 
     private static func load() -> [Mountain] {
         guard let url = Bundle.main.url(forResource: "mountains", withExtension: "json") else {

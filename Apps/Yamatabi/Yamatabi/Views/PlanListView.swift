@@ -48,9 +48,8 @@ struct PlanListView: View {
                 }
             }
             .sheet(isPresented: $isChoosingMountain) {
-                MountainListView(mountains: mountains) { mountain in
+                MountainFinderView(mountains: mountains) { mountain in
                     create(for: mountain)
-                    isChoosingMountain = false
                 }
             }
             .navigationDestination(item: $newPlan) { plan in

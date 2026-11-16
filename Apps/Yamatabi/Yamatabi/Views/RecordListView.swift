@@ -84,18 +84,6 @@ struct RecordDetailView: View {
         GSIMapView(tile: tile, track: points, fitsTrack: true)
             .ignoresSafeArea(edges: .bottom)
             .overlay(alignment: .bottom) { statsBar }
-            .overlay(alignment: .bottomLeading) {
-                Link(destination: URL(string: "https://maps.gsi.go.jp/development/ichiran.html")!) {
-                    Text("地理院タイル")
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
-                }
-                .tint(.secondary)
-                .padding(.leading, 12)
-                .padding(.bottom, 120)
-            }
             .navigationTitle(record.title)
             .navigationBarTitleDisplayMode(.inline)
             .task {
