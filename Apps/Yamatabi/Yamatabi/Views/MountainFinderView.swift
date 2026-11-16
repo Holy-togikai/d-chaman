@@ -324,8 +324,8 @@ struct MountainRow: View {
                             .font(.caption2.weight(.semibold))
                             .padding(.horizontal, 5)
                             .padding(.vertical, 2)
-                            .background(Color.green.opacity(0.18), in: Capsule())
-                            .foregroundStyle(.green)
+                            .background(Color.brandGreen.opacity(0.15), in: Capsule())
+                            .foregroundStyle(Color.brandGreen)
                     }
                 }
                 Text(mountain.prefectureText)

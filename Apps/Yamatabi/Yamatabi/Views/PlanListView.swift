@@ -66,7 +66,7 @@ struct PlanListView: View {
                 if plan.missingPieces.isEmpty {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.caption)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(Color.brandGreen)
                 }
             }
 
@@ -93,7 +93,7 @@ struct PlanListView: View {
                             .monospacedDigit()
                     }
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Color.brandGreen)
                 }
             } else {
                 Text("未入力: " + plan.missingPieces.joined(separator: "、"))

@@ -70,7 +70,7 @@ struct RoutePickerView: View {
                 Spacer(minLength: 8)
                 Text(TrackStatistics.hourMinuteText(route.courseTime))
                     .font(.subheadline.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Color.brandGreen)
             }
 
             Text("登山口: \(route.startName)（\(Int(route.startElevation))m）")

@@ -234,7 +234,7 @@ struct GSIMapView: UIViewRepresentable {
                     as? MKMarkerAnnotationView
                     ?? MKMarkerAnnotationView(annotation: cluster, reuseIdentifier: identifier)
                 view.annotation = cluster
-                view.markerTintColor = .systemGreen
+                view.markerTintColor = UIColor(resource: .brandGreen)
                 // まとめた中に百名山があれば、その数を出して目印にする。
                 view.glyphText = "\(cluster.memberAnnotations.count)"
                 view.displayPriority = .defaultHigh
@@ -260,7 +260,7 @@ struct GSIMapView: UIViewRepresentable {
             // 百名山は濃い緑＋塗りつぶしのアイコンで目立たせ、
             // それ以外は控えめにして、地図の情報量を抑える。
             if mountain.mountain.isHyakumeizan {
-                view.markerTintColor = .systemGreen
+                view.markerTintColor = UIColor(resource: .brandGreen)
                 view.glyphImage = UIImage(systemName: "mountain.2.fill")
                 // 混み合ったときは百名山を優先して残す。
                 view.displayPriority = .required
