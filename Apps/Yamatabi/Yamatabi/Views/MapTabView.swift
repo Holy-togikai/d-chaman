@@ -1,7 +1,13 @@
 import SwiftData
 import SwiftUI
 
-struct ContentView: View {
+/// 地図タブ。山を探し、軌跡を見ながら記録を取ります。
+///
+/// `LocationTracker` は `RootView` が持っているものを受け取ります。ここで `@StateObject`
+/// として持つと、タブを移った拍子に記録が止まってしまいます。
+struct MapTabView: View {
+    @ObservedObject var tracker: LocationTracker
+
     /// 表示中のタイル種別。
     @State private var tile: GSITile = .standard
     /// 選択中の山。
@@ -10,14 +16,14 @@ struct ContentView: View {
     @State private var isSearching = false
     /// 登山記録の一覧を出しているか。
     @State private var isShowingRecords = false
-    /// 登山計画の一覧を出しているか。
-    @State private var isShowingPlans = false
     /// 「終了」を押したあとの確認。
     @State private var isConfirmingFinish = false
     /// 保存できなかったときの通知。
     @State private var saveFailureMessage: String?
 
-    @StateObject private var tracker = LocationTracker()
+    /// 下部のパネルとタブバーが地図に重なる高さ。出典表示を隠さないために測っています。
+    @State private var bottomOverlayHeight: CGFloat = 0
+
     @Environment(\.modelContext) private var modelContext
 
     private let mountains = MountainData.all
@@ -30,7 +36,8 @@ struct ContentView: View {
             track: tracker.points,
             showsUserLocation: tracker.state != .idle,
             followsTrack: tracker.state == .recording,
-            onSelect: { selected = $0.mountain }
+            onSelect: { selected = $0.mountain },
+            attributionBottomInset: bottomOverlayHeight
         )
         .ignoresSafeArea()
         .overlay(alignment: .top) { topBar }
@@ -47,6 +54,16 @@ struct ContentView: View {
                     onResume: tracker.resume,
                     onFinish: { isConfirmingFinish = true }
                 )
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear.onChange(
+                            of: proxy.size.height + proxy.safeAreaInsets.bottom,
+                            initial: true
+                        ) { _, height in
+                            bottomOverlayHeight = height
+                        }
+                    }
+                }
             }
         }
         .sheet(isPresented: $isSearching) {
@@ -56,9 +73,6 @@ struct ContentView: View {
         }
         .sheet(isPresented: $isShowingRecords) {
             RecordListView()
-        }
-        .sheet(isPresented: $isShowingPlans) {
-            PlanListView()
         }
         // confirmationDialog ではキャンセルボタンが表示されない場合があり、
         // 記録を止めるという取り返しのつかない操作で逃げ道が見えないのは危ないため、
@@ -108,15 +122,6 @@ struct ContentView: View {
             }
 
             Spacer()
-
-            Button {
-                isShowingPlans = true
-            } label: {
-                Image(systemName: "calendar")
-                    .font(.system(size: 16, weight: .medium))
-                    .frame(width: 40, height: 40)
-                    .background(.regularMaterial, in: Circle())
-            }
 
             Button {
                 isShowingRecords = true
@@ -173,6 +178,6 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    MapTabView(tracker: LocationTracker())
         .modelContainer(for: [HikeRecord.self, HikePlan.self], inMemory: true)
 }

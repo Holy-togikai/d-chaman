@@ -3,6 +3,9 @@ import SwiftUI
 
 /// 保存済みの登山記録の一覧。
 struct RecordListView: View {
+    /// シートとして出すときだけ「閉じる」を出す。タブの中では閉じる先がないため。
+    var showsCloseButton = true
+
     @Query(sort: \HikeRecord.startedAt, order: .reverse) private var records: [HikeRecord]
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -23,8 +26,10 @@ struct RecordListView: View {
             .navigationTitle("登山記録")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("閉じる") { dismiss() }
+                if showsCloseButton {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("閉じる") { dismiss() }
+                    }
                 }
             }
             .overlay {
