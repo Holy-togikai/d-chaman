@@ -40,10 +40,10 @@ struct PlanListView: View {
             }
             .overlay {
                 if plans.isEmpty {
-                    ContentUnavailableView(
-                        "計画がありません",
-                        systemImage: "calendar",
-                        description: Text("右上の＋から、登る山と日付を決めて計画を作れます。")
+                    EmptyStateView(
+                        title: "計画がありません",
+                        message: "右上の＋から、登る山と日付を決めて計画を作れます。",
+                        systemImage: "calendar"
                     )
                 }
             }

@@ -50,10 +50,10 @@ struct PlaceSearchView: View {
             }
             .overlay {
                 if results.isEmpty, !isSearching, errorMessage == nil {
-                    ContentUnavailableView(
-                        "出発地を検索",
-                        systemImage: "house",
-                        description: Text("自宅の住所や最寄り駅などを入力して、検索キーを押してください。")
+                    EmptyStateView(
+                        title: "出発地を検索",
+                        message: "自宅の住所や最寄り駅などを入力して、検索キーを押してください。",
+                        systemImage: "house"
                     )
                 }
             }

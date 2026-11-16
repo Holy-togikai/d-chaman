@@ -50,11 +50,11 @@ struct RoutePickerView: View {
             }
             .overlay {
                 if shown.isEmpty {
-                    ContentUnavailableView(
-                        "往復できるルートがありません",
-                        systemImage: "arrow.triangle.swap",
-                        description: Text("この山は縦走・周回のルートだけが登録されています。"
-                                          + "上のスイッチを切ると表示できます。")
+                    EmptyStateView(
+                        title: "往復できるルートがありません",
+                        message: "この山は縦走・周回のルートだけが登録されています。"
+                            + "上のスイッチを切ると表示できます。",
+                        systemImage: "arrow.triangle.swap"
                     )
                 }
             }

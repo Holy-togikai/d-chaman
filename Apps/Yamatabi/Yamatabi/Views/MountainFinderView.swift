@@ -296,10 +296,10 @@ private struct MountainHistoryList: View {
         }
         .overlay {
             if visited.isEmpty {
-                ContentUnavailableView(
-                    "登った山がまだありません",
-                    systemImage: "clock.arrow.circlepath",
-                    description: Text("山を選んで記録を取ると、ここに並びます。")
+                EmptyStateView(
+                    title: "登った山がまだありません",
+                    message: "山を選んで記録を取ると、ここに並びます。",
+                    systemImage: "clock.arrow.circlepath"
                 )
             }
         }
