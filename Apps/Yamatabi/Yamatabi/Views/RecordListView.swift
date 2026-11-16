@@ -29,10 +29,10 @@ struct RecordListView: View {
             }
             .overlay {
                 if records.isEmpty {
-                    ContentUnavailableView(
-                        "記録がありません",
-                        systemImage: "figure.hiking",
-                        description: Text("山を選んで「記録を開始」すると、ここに残ります。")
+                    EmptyStateView(
+                        title: "記録がありません",
+                        message: "山を選んで「記録を開始」すると、ここに残ります。",
+                        systemImage: "figure.hiking"
                     )
                 }
             }

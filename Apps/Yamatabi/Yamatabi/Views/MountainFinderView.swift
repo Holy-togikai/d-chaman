@@ -296,10 +296,10 @@ private struct MountainHistoryList: View {
         }
         .overlay {
             if visited.isEmpty {
-                ContentUnavailableView(
-                    "登った山がまだありません",
-                    systemImage: "clock.arrow.circlepath",
-                    description: Text("山を選んで記録を取ると、ここに並びます。")
+                EmptyStateView(
+                    title: "登った山がまだありません",
+                    message: "山を選んで記録を取ると、ここに並びます。",
+                    systemImage: "clock.arrow.circlepath"
                 )
             }
         }
@@ -324,8 +324,8 @@ struct MountainRow: View {
                             .font(.caption2.weight(.semibold))
                             .padding(.horizontal, 5)
                             .padding(.vertical, 2)
-                            .background(Color.green.opacity(0.18), in: Capsule())
-                            .foregroundStyle(.green)
+                            .background(Color.brandGreen.opacity(0.15), in: Capsule())
+                            .foregroundStyle(Color.brandGreen)
                     }
                 }
                 Text(mountain.prefectureText)

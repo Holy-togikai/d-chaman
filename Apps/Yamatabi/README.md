@@ -224,3 +224,18 @@ python3 Tools/match_routes.py Yamatabi/Resources/mountains.json routes.json \
 
 地理院タイルの利用条件では出典の明示が必須です。呼び出し側に任せると付け忘れが起きるため、
 **`GSIMapView` が地図そのものに出典ボタンを重ねています。** 地図を使う画面すべてで自動的に表示されます。
+
+## 配色
+
+アプリアイコンの緑をブランド色として、アプリ全体で使っています。
+
+| | 色 | 用途 |
+|---|---|---|
+| ライト | `#395430` | アイコンの緑そのまま |
+| ダーク | `#8FBB81` | 暗い背景で沈まないよう明度を上げたもの |
+
+`Assets.xcassets/BrandGreen.colorset` に定義し、`Color.brandGreen` /
+`UIColor(resource: .brandGreen)` で参照します。AccentColor も同じ色です。
+
+**素の `Color.green` や `.systemGreen` は使わないでください。** iOS 標準の緑は
+アイコンより明るく彩度が高いため、並べると浮きます。

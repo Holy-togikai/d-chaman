@@ -40,7 +40,7 @@ struct RecordingPanel: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 15)
-            .background(Color.green, in: Capsule())
+            .background(Color.brandGreen, in: Capsule())
             .foregroundStyle(.white)
         }
     }

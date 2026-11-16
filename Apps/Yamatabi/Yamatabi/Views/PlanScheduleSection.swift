@@ -11,7 +11,7 @@ struct PlanScheduleSection: View {
                 row("日の入り", schedule.sunset, "sunset.fill", .orange)
 
                 row("下山を終える", schedule.descentDeadline, "flag.checkered", .red)
-                row("歩き出す", schedule.startHikingAt, "figure.hiking", .green)
+                row("歩き出す", schedule.startHikingAt, "figure.hiking", .brandGreen)
 
                 // 移動時間が分からないまま出発時刻を出すと、間に合わない計画を
                 // 信じてしまう。危険な側に外すので、揃うまでは出さない。

@@ -108,7 +108,7 @@ struct ParkingPickerView: View {
                         .font(.subheadline.weight(.medium))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
-                        .background(Color.green, in: Capsule())
+                        .background(Color.brandGreen, in: Capsule())
                         .foregroundStyle(.white)
                 }
                 .padding(.bottom, 12)
