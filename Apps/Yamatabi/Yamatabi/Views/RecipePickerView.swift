@@ -10,9 +10,16 @@ struct RecipePickerView: View {
     @State private var gearFilter: Set<CookingGear> = []
     @State private var hidesCooler = false
 
+    /// 絞り込みに出す器具。
+    ///
+    /// バーナーはどのレシピでも使うので、絞り込みの対象から外しています。
+    /// 入れてしまうと、バーナーを選び忘れただけで候補が 0 件になってしまいます。
+    private static let filterableGear = CookingGear.allCases.filter { $0 != .stove }
+
     private var results: [Recipe] {
         RecipeData.all.filter { recipe in
-            let gearOK = gearFilter.isEmpty || recipe.gear.allSatisfy { gearFilter.contains($0) }
+            let required = recipe.gear.filter { $0 != .stove }
+            let gearOK = gearFilter.isEmpty || required.allSatisfy { gearFilter.contains($0) }
             let coolerOK = !hidesCooler || !recipe.needsCooler
             return gearOK && coolerOK
         }
@@ -67,7 +74,7 @@ struct RecipePickerView: View {
 
     private var filterSection: some View {
         Section {
-            ForEach(CookingGear.allCases) { gear in
+            ForEach(Self.filterableGear) { gear in
                 Toggle(isOn: gearBinding(for: gear)) {
                     Label(gear.rawValue, systemImage: gear.symbolName)
                 }
@@ -79,7 +86,8 @@ struct RecipePickerView: View {
             Text("持っていく器具")
         } footer: {
             Text("何も選ばないと、すべてのレシピを出します。"
-                 + "選ぶと、その器具だけで作れるレシピに絞られます。")
+                 + "選ぶと、その器具だけで作れるレシピに絞られます。"
+                 + "どのレシピもバーナーは使うので、ここには出していません。")
         }
     }
 
