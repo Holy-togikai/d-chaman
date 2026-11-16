@@ -27,6 +27,13 @@ struct GSIMapView: UIViewRepresentable {
     /// 地図を長押ししたときに呼ばれる。登山口を自分で指定するのに使います。
     var onLongPress: ((CLLocationCoordinate2D) -> Void)?
 
+    /// 出典表示を持ち上げる高さ。
+    ///
+    /// 地図は safe area を無視して画面いっぱいに描くので、そのままだと出典が
+    /// 下部のパネルやタブバーに隠れます。地理院タイルは出典を見せることが
+    /// 利用の条件なので、隠れたままにはできません。重なるぶんをここで受け取ります。
+    var attributionBottomInset: CGFloat = 0
+
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
@@ -60,6 +67,7 @@ struct GSIMapView: UIViewRepresentable {
     func updateUIView(_ mapView: MKMapView, context: Context) {
         context.coordinator.onSelect = onSelect
         context.coordinator.onLongPress = onLongPress
+        updateAttribution(on: mapView)
 
         if mapView.showsUserLocation != showsUserLocation {
             mapView.showsUserLocation = showsUserLocation
@@ -152,13 +160,29 @@ struct GSIMapView: UIViewRepresentable {
             for: .touchUpInside
         )
         button.translatesAutoresizingMaskIntoConstraints = false
+        button.tag = Self.attributionTag
         mapView.addSubview(button)
+        let bottom = button.bottomAnchor.constraint(
+            equalTo: mapView.safeAreaLayoutGuide.bottomAnchor,
+            constant: -8
+        )
+        bottom.identifier = Self.attributionBottomID
         NSLayoutConstraint.activate([
             button.leadingAnchor.constraint(equalTo: mapView.safeAreaLayoutGuide.leadingAnchor,
                                             constant: 8),
-            button.bottomAnchor.constraint(equalTo: mapView.safeAreaLayoutGuide.bottomAnchor,
-                                           constant: -8)
+            bottom
         ])
+    }
+
+    private static let attributionTag = 7301
+    private static let attributionBottomID = "attribution.bottom"
+
+    /// 下部のパネルぶんだけ出典を持ち上げ直す。
+    private func updateAttribution(on mapView: MKMapView) {
+        guard let constraint = mapView.constraints.first(
+            where: { $0.identifier == Self.attributionBottomID }
+        ) else { return }
+        constraint.constant = -8 - attributionBottomInset
     }
 
     /// MKMapView からの通知を受け取る係。
@@ -169,6 +193,13 @@ struct GSIMapView: UIViewRepresentable {
         var focusedID: String?
         var onSelect: ((MountainAnnotation) -> Void)?
         var onLongPress: ((CLLocationCoordinate2D) -> Void)?
+
+    /// 出典表示を持ち上げる高さ。
+    ///
+    /// 地図は safe area を無視して画面いっぱいに描くので、そのままだと出典が
+    /// 下部のパネルやタブバーに隠れます。地理院タイルは出典を見せることが
+    /// 利用の条件なので、隠れたままにはできません。重なるぶんをここで受け取ります。
+    var attributionBottomInset: CGFloat = 0
         weak var mapView: MKMapView?
         private(set) var trackCount = 0
 

@@ -185,6 +185,32 @@ final class HikePlan {
         if courseTimeSeconds <= 0 { missing.append("コースタイム") }
         return missing
     }
+
+    /// 「つぎの山行」を選ぶときの基準になる時刻。
+    ///
+    /// 登る日ではなく家を出る時刻で見ます。富士宮口のように前日の深夜に出る計画があり、
+    /// 日付で選ぶと、すでに車で走っている計画を「明日のこと」として扱ってしまうためです。
+    var departureReference: Date {
+        schedule()?.leaveHomeAt ?? date
+    }
+
+    /// この計画を「つぎの山行」として出しておく期限。
+    ///
+    /// 下山したらすぐ消えてしまうと、帰り道で寄り道を探せません。
+    /// 下山期限から6時間（帰路のぶん）は残します。
+    var relevanceDeadline: Date {
+        if let schedule = schedule() {
+            return schedule.descentDeadline.addingTimeInterval(6 * 60 * 60)
+        }
+        return Calendar.current.startOfDay(for: date).addingTimeInterval(48 * 60 * 60)
+    }
+
+    /// まだ先か、いま進行中の計画のうち、いちばん近いもの。
+    static func next(from plans: [HikePlan], now: Date = Date()) -> HikePlan? {
+        plans
+            .filter { now < $0.relevanceDeadline }
+            .min { $0.departureReference < $1.departureReference }
+    }
 }
 
 /// コースタイムの根拠。

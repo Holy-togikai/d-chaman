@@ -6,7 +6,7 @@ import SwiftUI
 struct YamatabiApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
         }
         // 登山記録と登山計画の保存先。端末内のデータベースに永続化されます。
         .modelContainer(for: [HikeRecord.self, HikePlan.self])
