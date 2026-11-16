@@ -23,6 +23,8 @@ struct PlanEditorView: View {
     @State private var isPickingRoute = false
     @State private var isEditingCourseTime = false
     @State private var isEditingToll = false
+    @State private var isShowingPostHike = false
+    @State private var isShowingMeals = false
 
     @State private var routeError: String?
     @State private var isCalculatingRoute = false
@@ -46,6 +48,12 @@ struct PlanEditorView: View {
                 isLoading: isLoadingWeather,
                 errorMessage: weatherError
             )
+            PlanExtrasSection(
+                plan: plan,
+                onOpenMeals: { isShowingMeals = true },
+                onOpenPostHike: { isShowingPostHike = true }
+            )
+
             PlanDriveSection(
                 plan: plan,
                 isCalculating: isCalculatingRoute,
@@ -69,6 +77,12 @@ struct PlanEditorView: View {
             PlanTollInput(plan: plan, vehicle: settings.vehicleClass)
         } message: {
             Text("ドラぷら等で調べた金額を円単位で入力すると、概算を上書きできます。")
+        }
+        .sheet(isPresented: $isShowingMeals) {
+            MealPlanView(plan: plan)
+        }
+        .sheet(isPresented: $isShowingPostHike) {
+            PostHikeSpotsView(plan: plan)
         }
         .sheet(isPresented: $isPickingParking) {
             ParkingPickerView(summit: plan.summitCoordinate) { spot in
@@ -243,6 +257,7 @@ struct PlanEditorView: View {
     }
 
     private func useCurrentLocation() async {
+        // 失敗の理由は locationProvider.errorMessage に入り、出発地の欄に出る。
         guard let location = try? await locationProvider.current() else { return }
         plan.originName = "現在地"
         plan.originLatitude = location.coordinate.latitude

@@ -8,10 +8,12 @@ import CoreLocation
 final class CurrentLocationProvider: NSObject, ObservableObject {
 
     @Published private(set) var isLocating = false
-    @Published private(set) var errorMessage: String?
+    @Published var errorMessage: String?
 
     private let manager = CLLocationManager()
     private var continuation: CheckedContinuation<CLLocation, Error>?
+    /// 権限ダイアログの応答を待っている最中か。応答が来てから測位を頼みます。
+    private var isWaitingForAuthorization = false
 
     enum Failure: LocalizedError {
         case permissionDenied
@@ -19,8 +21,10 @@ final class CurrentLocationProvider: NSObject, ObservableObject {
 
         var errorDescription: String? {
             switch self {
-            case .permissionDenied: "位置情報の利用が許可されていません。"
-            case .failed: "現在地を取得できませんでした。"
+            case .permissionDenied:
+                "位置情報の利用が許可されていません。設定アプリから許可してください。"
+            case .failed:
+                "現在地を取得できませんでした。しばらくしてからお試しください。"
             }
         }
     }
@@ -33,30 +37,57 @@ final class CurrentLocationProvider: NSObject, ObservableObject {
 
     func current() async throws -> CLLocation {
         if manager.authorizationStatus == .denied || manager.authorizationStatus == .restricted {
+            errorMessage = Failure.permissionDenied.errorDescription
             throw Failure.permissionDenied
-        }
-        if manager.authorizationStatus == .notDetermined {
-            manager.requestWhenInUseAuthorization()
         }
 
         isLocating = true
         errorMessage = nil
-        defer { isLocating = false }
 
         return try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
-            manager.requestLocation()
+
+            if manager.authorizationStatus == .notDetermined {
+                // 許可を求めた直後に測位を頼んでも無視される。
+                // 応答が来てから locationManagerDidChangeAuthorization 側で頼む。
+                isWaitingForAuthorization = true
+                manager.requestWhenInUseAuthorization()
+            } else {
+                manager.requestLocation()
+            }
         }
     }
 
     private func finish(with result: Result<CLLocation, Error>) {
         guard let continuation else { return }
         self.continuation = nil
+        isWaitingForAuthorization = false
+        isLocating = false
+        if case .failure(let error) = result {
+            errorMessage = (error as? Failure)?.errorDescription
+                ?? Failure.failed.errorDescription
+        }
         continuation.resume(with: result)
     }
 }
 
 extension CurrentLocationProvider: CLLocationManagerDelegate {
+
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        Task { @MainActor in
+            guard isWaitingForAuthorization else { return }
+            switch status {
+            case .authorizedWhenInUse, .authorizedAlways:
+                isWaitingForAuthorization = false
+                self.manager.requestLocation()
+            case .denied, .restricted:
+                finish(with: .failure(Failure.permissionDenied))
+            default:
+                break   // まだ応答が来ていない
+            }
+        }
+    }
 
     nonisolated func locationManager(
         _ manager: CLLocationManager,
@@ -67,9 +98,6 @@ extension CurrentLocationProvider: CLLocationManagerDelegate {
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        Task { @MainActor in
-            errorMessage = Failure.failed.errorDescription
-            finish(with: .failure(Failure.failed))
-        }
+        Task { @MainActor in finish(with: .failure(Failure.failed)) }
     }
 }

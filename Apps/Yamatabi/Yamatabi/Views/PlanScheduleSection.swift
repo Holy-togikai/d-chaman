@@ -56,12 +56,18 @@ struct PlanScheduleSection: View {
             + "登山口での準備に30分を見込んでいます。"
     }
 
+    /// 登山日より前の日か。
+    private func isPreviousDay(_ date: Date) -> Bool {
+        !Calendar.current.isDate(date, inSameDayAs: plan.date)
+    }
+
     private func row(
         _ title: String,
         _ date: Date,
         _ symbol: String,
         _ color: Color,
-        emphasized: Bool = false
+        emphasized: Bool = false,
+        prefix: String? = nil
     ) -> some View {
         HStack {
             Label {
@@ -70,7 +76,7 @@ struct PlanScheduleSection: View {
                 Image(systemName: symbol).foregroundStyle(color)
             }
             Spacer()
-            Text(time(date))
+            Text((prefix ?? "") + time(date))
                 .monospacedDigit()
                 .font(emphasized ? .title3.weight(.semibold) : .body)
                 .foregroundStyle(emphasized ? color : .primary)

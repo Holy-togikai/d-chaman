@@ -120,13 +120,18 @@ enum RouteService {
     /// 「中央自動車道に入ります」のような案内文から道路名を切り出す。
     private static func highwayName(in text: String, keyword: String) -> String? {
         guard let range = text.range(of: keyword) else { return nil }
-        // キーワードの手前にある名前の部分を、助詞や記号の手前まで遡って取り出す。
+        // キーワードの手前にある名前の部分を遡って取り出す。
+        // 高速道路の名前は漢字・カタカナ・英数字でできており、ひらがなは入らない。
+        // 「走行して新東名高速道路」の「して」のような送り仮名で切れるよう、
+        // ひらがなと記号をすべて区切りとして扱う。
         let prefix = text[text.startIndex..<range.lowerBound]
-        let separators = CharacterSet(charactersIn: "、。 　「」をにでへとはがのり")
-        let name = prefix.unicodeScalars.reversed()
-            .prefix { !separators.contains($0) }
+        let name = prefix.reversed()
+            .prefix { character in
+                guard let scalar = character.unicodeScalars.first else { return false }
+                let isHiragana = (0x3041...0x309F).contains(Int(scalar.value))
+                return !isHiragana && !character.isWhitespace && !character.isPunctuation
+            }
             .reversed()
-            .map(Character.init)
         let full = String(name) + keyword
         return full.count > keyword.count ? full : nil
     }
