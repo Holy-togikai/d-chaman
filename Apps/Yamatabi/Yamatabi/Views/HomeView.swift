@@ -2,9 +2,12 @@ import SwiftData
 import SwiftUI
 
 /// TOP画面。つぎの山行を、出発から帰りの寄り道まで1枚で見せます。
+///
+/// 標準のリストを使うと端末のテーマそのままの見た目になってしまうため、
+/// アイコンの深緑を基調に組み立て直しています。
 struct HomeView: View {
     @ObservedObject var tracker: LocationTracker
-    /// 地図タブへ切り替える。記録中の帯や「記録を開始」から呼びます。
+    /// 地図タブへ切り替える。記録中の帯や地図への導線から呼びます。
     let onOpenMap: () -> Void
 
     @Query(sort: \HikePlan.date, order: .forward) private var plans: [HikePlan]
@@ -22,19 +25,26 @@ struct HomeView: View {
 
     private let mountains = MountainData.all
     private let clock = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
     private var plan: HikePlan? { HikePlan.next(from: plans, now: now) }
 
     var body: some View {
         NavigationStack {
-            List {
-                if let plan {
-                    planSections(for: plan)
-                } else {
-                    emptySection
+            ScrollView {
+                VStack(spacing: 16) {
+                    if let plan {
+                        planContent(for: plan)
+                    } else {
+                        emptyCard
+                    }
+                    libraryRow
                 }
-                librarySection
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 64)
             }
+            .background(Color.brandGreen.opacity(0.05).ignoresSafeArea())
             .navigationTitle("山旅")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -44,6 +54,7 @@ struct HomeView: View {
                     } label: {
                         Label("設定", systemImage: "gearshape")
                     }
+                    .tint(.brandGreen)
                 }
             }
             .navigationDestination(item: $openedPlan) { plan in
@@ -66,7 +77,7 @@ struct HomeView: View {
     // MARK: - 計画があるとき
 
     @ViewBuilder
-    private func planSections(for plan: HikePlan) -> some View {
+    private func planContent(for plan: HikePlan) -> some View {
         let schedule = plan.schedule()
         let progress = HikeProgress.make(
             for: plan,
@@ -75,76 +86,76 @@ struct HomeView: View {
             now: now
         )
 
-        headerSection(for: plan, progress: progress)
+        headerCard(for: plan, progress: progress)
 
         if tracker.state != .idle {
-            Section {
-                HomeRecordingBanner(
-                    state: tracker.state,
-                    statistics: tracker.statistics,
-                    mountainName: tracker.mountainName,
-                    remainingUntilDeadline: remainingUntilDescent(schedule),
-                    onOpenMap: onOpenMap
-                )
-            }
+            HomeRecordingBanner(
+                state: tracker.state,
+                statistics: tracker.statistics,
+                remainingUntilDeadline: remainingUntilDescent(schedule),
+                onOpenMap: onOpenMap
+            )
         }
 
-        Section {
+        let content = HomeStageContent(plan: plan, schedule: schedule)
+        LazyVGrid(columns: columns, spacing: 12) {
             ForEach(HikeStage.allCases) { stage in
-                HomeStageRow(
+                HomeStageTile(
                     stage: stage,
                     state: progress.state(of: stage),
-                    detail: detail(for: stage, plan: plan, schedule: schedule),
-                    trailing: trailing(for: stage, plan: plan),
-                    needsAttention: needsAttention(stage, plan: plan),
+                    value: content.value(for: stage),
+                    caption: content.caption(for: stage),
+                    needsAttention: content.needsAttention(stage),
                     action: { open(stage, plan: plan) }
                 )
             }
-        } header: {
-            Text("この山行の流れ")
-        } footer: {
-            Text("時刻は日の入りの1時間前までに下山できるよう逆算したものです。"
-                 + "行をタップすると、その場面の画面を開きます。")
         }
     }
 
-    /// 下山期限までの残り時間。
-    ///
-    /// 計画の日より前に試し録りしているときは出しません。何日も先の期限との差を
-    /// 「下山まであと152時間」と出しても、画面が壊れて見えるだけだからです。
-    private func remainingUntilDescent(_ schedule: HikeSchedule?) -> TimeInterval? {
-        guard let schedule, now >= schedule.leaveHomeAt else { return nil }
-        return schedule.descentDeadline.timeIntervalSince(now)
-    }
+    /// つぎの山行の見出し。アイコンと同じ深緑で塗り、山の稜線を敷いています。
+    private func headerCard(for plan: HikePlan, progress: HikeProgress) -> some View {
+        Button {
+            openedPlan = plan
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(headline(for: progress))
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.75))
+                Text(plan.mountainName)
+                    .font(.title.weight(.bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                Text(subtitle(for: plan))
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.75))
+                    .lineLimit(1)
 
-    private func headerSection(for plan: HikePlan, progress: HikeProgress) -> some View {
-        Section {
-            Button {
-                openedPlan = plan
-            } label: {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(headline(for: progress))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(plan.mountainName)
-                        .font(.title3.weight(.semibold))
-                    Text(subtitle(for: plan))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                if !plan.missingPieces.isEmpty {
+                    Label(
+                        plan.missingPieces.joined(separator: "・"),
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.white.opacity(0.22), in: Capsule())
+                    .padding(.top, 4)
                 }
-                .padding(.vertical, 2)
             }
-            .tint(.primary)
-
-            if !plan.missingPieces.isEmpty {
-                Label(
-                    "\(plan.missingPieces.joined(separator: "・")) がまだ決まっていません",
-                    systemImage: "exclamationmark.triangle.fill"
-                )
-                .font(.caption)
-                .foregroundStyle(.orange)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(18)
+            .background(alignment: .bottomTrailing) {
+                MountainSilhouette()
+                    .fill(.white.opacity(0.12))
+                    .frame(width: 150, height: 86)
+                    .offset(x: 24, y: 18)
             }
+            .background(Color.brandGreenDeep)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
         }
+        .buttonStyle(.plain)
     }
 
     private func headline(for progress: HikeProgress) -> String {
@@ -163,66 +174,16 @@ struct HomeView: View {
         return parts.joined(separator: " ・ ")
     }
 
-    // MARK: - 各段の中身
-
-    private func detail(for stage: HikeStage, plan: HikePlan, schedule: HikeSchedule?) -> String? {
-        switch stage {
-        case .departure:
-            return departureDetail(plan: plan, schedule: schedule)
-        case .arrival:
-            return arrivalDetail(plan: plan, schedule: schedule)
-        case .hiking:
-            guard let schedule else { return plan.routeName }
-            let start = time(schedule.startHikingAt, on: plan)
-            return "\(start) 歩き出す ・ \(TrackStatistics.hourMinuteText(schedule.courseTime))"
-        case .meal:
-            if plan.recipes.isEmpty { return "レシピを選ぶと買い出しリストを作ります" }
-            let total = ShoppingListBuilder
-                .build(from: plan.recipes, servings: plan.mealServings)
-                .reduce(0) { $0 + $1.items.count }
-            let done = plan.purchasedIngredientIDs.count
-            return "\(plan.recipes.count)品 ・ 買い出し \(done)/\(total)"
-        case .descent:
-            guard let schedule else { return nil }
-            let deadline = time(schedule.descentDeadline, on: plan)
-            return "\(deadline)までに ・ 日の入り \(time(schedule.sunset, on: plan))"
-        case .detour:
-            // 寄り道は保存していないため、ここに出せるのは入口の案内だけです。
-            return plan.trailheadCoordinate == nil
-                ? "登山口を決めると探せます"
-                : "温泉・食事処・道の駅を探す"
-        }
+    /// 下山期限までの残り時間。
+    ///
+    /// 計画の日より前に試し録りしているときは出しません。何日も先の期限との差を
+    /// 「下山まであと152時間」と出しても、画面が壊れて見えるだけだからです。
+    private func remainingUntilDescent(_ schedule: HikeSchedule?) -> TimeInterval? {
+        guard let schedule, now >= schedule.leaveHomeAt else { return nil }
+        return schedule.descentDeadline.timeIntervalSince(now)
     }
 
-    private func departureDetail(plan: HikePlan, schedule: HikeSchedule?) -> String? {
-        guard let schedule else { return "出発地と登山口を決めると時刻を出します" }
-        var text = time(schedule.leaveHomeAt, on: plan)
-        if let toll = plan.tollEstimate(for: UserSettings.shared.vehicleClass) {
-            text += " ・ \(toll.amountText)"
-        }
-        return text
-    }
-
-    private func arrivalDetail(plan: HikePlan, schedule: HikeSchedule?) -> String? {
-        guard let schedule else { return plan.trailheadName }
-        let arrival = schedule.leaveHomeAt.addingTimeInterval(schedule.driveTime)
-        var text = time(arrival, on: plan)
-        if let trailhead = plan.trailheadName { text += " ・ \(trailhead)" }
-        return text
-    }
-
-    private func trailing(for stage: HikeStage, plan: HikePlan) -> String? {
-        guard stage == .departure, let drive = plan.driveTimeSeconds, drive > 0 else { return nil }
-        return TrackStatistics.hourMinuteText(drive)
-    }
-
-    private func needsAttention(_ stage: HikeStage, plan: HikePlan) -> Bool {
-        guard stage == .meal, !plan.recipes.isEmpty else { return false }
-        let total = ShoppingListBuilder
-            .build(from: plan.recipes, servings: plan.mealServings)
-            .reduce(0) { $0 + $1.items.count }
-        return plan.purchasedIngredientIDs.count < total
-    }
+    // MARK: - タイルの行き先
 
     private func open(_ stage: HikeStage, plan: HikePlan) {
         switch stage {
@@ -233,58 +194,66 @@ struct HomeView: View {
         }
     }
 
-    /// 「23:57」。登る日と違う日なら「前日 23:57」。
-    private func time(_ date: Date, on plan: HikePlan) -> String {
-        let text = date.formatted(date: .omitted, time: .shortened)
-        guard !Calendar.current.isDate(date, inSameDayAs: plan.date) else { return text }
-        return date < plan.date ? "前日 \(text)" : "翌日 \(text)"
-    }
-
     // MARK: - 計画がないとき
 
-    private var emptySection: some View {
-        Section {
-            Button {
-                isChoosingMountain = true
-            } label: {
-                VStack(spacing: 8) {
-                    Image(systemName: "mountain.2.fill")
-                        .font(.system(size: 30))
-                        .foregroundStyle(Color.brandGreen)
-                    Text("つぎの山を決める")
-                        .font(.subheadline.weight(.semibold))
-                    Text("山を選ぶと、出発から帰りまでを組み立てます。")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 18)
+    private var emptyCard: some View {
+        Button {
+            isChoosingMountain = true
+        } label: {
+            VStack(spacing: 10) {
+                Image(systemName: "mountain.2.fill")
+                    .font(.system(size: 52))
+                    .foregroundStyle(.white)
+                Text("つぎの山を決める")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Text("山を選ぶと、出発から帰りまでを組み立てます。")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.75))
+                    .multilineTextAlignment(.center)
             }
-            .tint(.primary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 36)
+            .padding(.horizontal, 18)
+            .background(Color.brandGreenDeep)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
         }
+        .buttonStyle(.plain)
     }
 
     // MARK: - 下段
 
-    private var librarySection: some View {
-        Section {
-            Button {
+    private var libraryRow: some View {
+        HStack(spacing: 12) {
+            shortcut("すべての計画", systemImage: "calendar", badge: plans.isEmpty ? nil : "\(plans.count)") {
                 isShowingPlans = true
-            } label: {
-                LabeledContent {
-                    Text(plans.isEmpty ? "" : "\(plans.count) 件")
-                } label: {
-                    Label("すべての計画", systemImage: "calendar")
-                }
             }
-            Button {
+            shortcut("登山の記録", systemImage: "figure.hiking", badge: nil) {
                 isShowingRecords = true
-            } label: {
-                Label("登山の記録", systemImage: "list.bullet.rectangle")
             }
         }
-        .tint(.primary)
+    }
+
+    private func shortcut(
+        _ title: String,
+        systemImage: String,
+        badge: String?,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 24))
+                    .foregroundStyle(Color.brandGreen)
+                Text(badge.map { "\(title) \($0)" } ?? title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(Color.brandGreen.opacity(0.07), in: RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
     }
 
     private func create(for mountain: Mountain) {
