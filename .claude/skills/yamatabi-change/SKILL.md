@@ -38,11 +38,28 @@ cd Apps/Yamatabi
 xcodebuild -project Yamatabi.xcodeproj -scheme Yamatabi -configuration Debug \
   -destination "id=$(xcrun devicectl list devices 2>/dev/null | awk '/iPhone 17 /{print $3}' | head -1)" \
   build 2>&1 | grep -E "error:|BUILD"
-/opt/homebrew/bin/swiftlint lint --quiet --config .swiftlint.yml
+/opt/homebrew/bin/swiftlint lint --quiet
 ```
 
 シミュレータの UDID は `xcrun simctl list devices booted` でも調べられます。
 **両方とも通るまで次へ進まない。**
+
+`swiftlint` に `--config` を付けないでください。付けると `YamatabiTests/.swiftlint.yml`
+が読まれず、日本語のテスト名が全部違反になります。
+
+## 3.5. テストを走らせる
+
+計算を変えたなら、必ず走らせてください。
+
+```bash
+cd Apps/Yamatabi
+xcodebuild test -project Yamatabi.xcodeproj -scheme Yamatabi \
+  -destination "id=<シミュレータのUDID>" 2>&1 | grep -E "error:|✘|Test run|TEST"
+```
+
+**`** TEST SUCCEEDED **` が出るまで次へ進まない。**
+失敗したら、テストが間違っているのか、コードが間違っているのかを見極めてください。
+**テストを通すためにテストを緩めてはいけません。**
 
 ## 4. 画面で確かめる
 
