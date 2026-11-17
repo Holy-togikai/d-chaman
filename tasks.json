@@ -98,7 +98,7 @@
     {
       "id": "T-007",
       "task": "画面を使わずに試せる計算に自動テストを足す",
-      "status": "review",
+      "status": "done",
       "passes": [
         "テスト用のターゲットが作られ、xcodebuild test で実行できる",
         "日の出・日の入りの計算に、公表値と照合するテストがある",
@@ -108,7 +108,7 @@
         "全テストが通り、その出力を evidence に記録した",
         "既存のアプリのビルドが壊れていない"
       ],
-      "evidence": "【2026-11-17】テスト用ターゲット YamatabiTests を作成（Swift Testing）。共有スキームを置き、xcodebuild test で走る。／ 結果: ** TEST SUCCEEDED **、54 tests in 5 suites passed。／ 内訳: SunCalculatorTests（国立天文台の公表値と±2分以内。札幌・東京・那覇×夏至冬至の6件、富士山頂の標高補正、12か月分の日の出<日の入り）、HikePlannerTests（3つの決め方・休憩の加算・ペース倍率・出発地なしの扱い・概算の限界）、ShoppingListTests（合算・人数換算・少々の非合算・既定人数違いの合算・売り場順）、TrackMathTests（3m以下の揺れを無視するヒステリシス・揺れながら登っても膨らまない・距離・移動時間・途切れた区間）、HikePlanTests（つぎの山行の選び方・前日出発・下山後の猶予・進み具合の6段・高速料金）。／ アプリのビルド: ** BUILD SUCCEEDED **。／ SwiftLint: Found 0 violations, 0 serious in 52 files。／ テストが実際に不具合を捕まえることを確認: SunTimes.swift の標高補正を 0 に壊したところ 『標高が高いほど日が長くなる』が失敗し、戻すと再び通った。",
+      "evidence": "【2026-11-17】テスト用ターゲット YamatabiTests を作成（Swift Testing）。共有スキームを置き、xcodebuild test で走る。／ 結果: ** TEST SUCCEEDED **、54 tests in 5 suites passed。／ 内訳: SunCalculatorTests（国立天文台の公表値と±2分以内。札幌・東京・那覇×夏至冬至の6件、富士山頂の標高補正、12か月分の日の出<日の入り）、HikePlannerTests（3つの決め方・休憩の加算・ペース倍率・出発地なしの扱い・概算の限界）、ShoppingListTests（合算・人数換算・少々の非合算・既定人数違いの合算・売り場順）、TrackMathTests（3m以下の揺れを無視するヒステリシス・揺れながら登っても膨らまない・距離・移動時間・途切れた区間）、HikePlanTests（つぎの山行の選び方・前日出発・下山後の猶予・進み具合の6段・高速料金）。／ アプリのビルド: ** BUILD SUCCEEDED **。／ SwiftLint: Found 0 violations, 0 serious in 52 files。／ テストが実際に不具合を捕まえることを確認: SunTimes.swift の標高補正を 0 に壊したところ 『標高が高いほど日が長くなる』が失敗し、戻すと再び通った。 ／【検品 2026-11-18】PR #15 をマージ（main: 0c6151d）。main 上で再度 xcodebuild test を実行し、54 tests in 5 suites passed、** TEST SUCCEEDED ** を確認。passes の7項目すべてに証拠あり。",
       "dependencies": []
     }
   ]
