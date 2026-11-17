@@ -20,6 +20,8 @@ struct MapTabView: View {
     @State private var isConfirmingFinish = false
     /// 保存できなかったときの通知。
     @State private var saveFailureMessage: String?
+    /// 地図から作った計画。開いている間はシートに出します。
+    @State private var newPlan: HikePlan?
 
     /// 下部のパネルとタブバーが地図に重なる高さ。出典表示を隠さないために測っています。
     @State private var bottomOverlayHeight: CGFloat = 0
@@ -50,6 +52,7 @@ struct MapTabView: View {
                     statistics: tracker.statistics,
                     mountainName: tracker.state == .idle ? selected?.name : tracker.mountainName,
                     onStart: { tracker.start(mountainName: selected?.displayName, mountainID: selected?.id) },
+                    onPlan: selected.map { mountain in { createPlan(for: mountain) } },
                     onPause: tracker.pause,
                     onResume: tracker.resume,
                     onFinish: { isConfirmingFinish = true }
@@ -64,6 +67,16 @@ struct MapTabView: View {
                         }
                     }
                 }
+            }
+        }
+        .sheet(item: $newPlan) { plan in
+            NavigationStack {
+                PlanEditorView(plan: plan)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("閉じる") { newPlan = nil }
+                        }
+                    }
             }
         }
         .sheet(isPresented: $isSearching) {
@@ -148,6 +161,16 @@ struct MapTabView: View {
         .tint(.primary)
         .padding(.horizontal, 12)
         .padding(.top, 8)
+    }
+
+    /// 地図で選んだ山で計画を作る。
+    private func createPlan(for mountain: Mountain) {
+        // 既定は1週間後。天気予報が出ている範囲で、準備の時間も取れる距離感。
+        let date = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
+        let plan = HikePlan(mountain: mountain, date: date)
+        modelContext.insert(plan)
+        try? modelContext.save()
+        newPlan = plan
     }
 
     // MARK: - 保存
