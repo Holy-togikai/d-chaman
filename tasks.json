@@ -114,14 +114,14 @@
     {
       "id": "T-008",
       "task": "検索タブの「日本百名山だけ」が145件になる不具合を直す",
-      "status": "review",
+      "status": "done",
       "passes": [
         "検索タブで「日本百名山だけ」を入れると100件になる",
         "百名山タブの100座と件数が一致する",
         "この食い違いを捕まえるテストがある",
         "全テストが通る"
       ],
-      "evidence": "【2026-11-18】原因: 検索タブは isHyakumeizan（副峰を含む145地点）で絞り、百名山タブは isHyakumeizanPeak（代表の山頂だけ100座）で絞っていた。／ 修正: 絞り込みを MountainData.search に切り出し、isHyakumeizanPeak で揃えた。／ テスト: MountainDataTests を追加（13件）。『検索の百名山だけと百名山タブの件数が一致する』を含む。わざと元の不具合に戻すと3件が失敗し、直すと通ることを確認。／ 結果: ** TEST SUCCEEDED **、67 tests in 6 suites passed。／ SwiftLint: 0 violations in 53 files。／ シミュレータで、検索タブの絞り込みが「100 件」と表示されることを確認。",
+      "evidence": "【2026-11-18】原因: 検索タブは isHyakumeizan（副峰を含む145地点）で絞り、百名山タブは isHyakumeizanPeak（代表の山頂だけ100座）で絞っていた。／ 修正: 絞り込みを MountainData.search に切り出し、isHyakumeizanPeak で揃えた。／ テスト: MountainDataTests を追加（13件）。『検索の百名山だけと百名山タブの件数が一致する』を含む。わざと元の不具合に戻すと3件が失敗し、直すと通ることを確認。／ 結果: ** TEST SUCCEEDED **、67 tests in 6 suites passed。／ SwiftLint: 0 violations in 53 files。／ シミュレータで、検索タブの絞り込みが「100 件」と表示されることを確認。 ／【検品 2026-11-18】PR #16 をマージ（main: c6d8773）。main 上で再度テストを実行し 67 tests in 6 suites passed を確認。実機へ導入し起動も確認。",
       "dependencies": []
     }
   ]
