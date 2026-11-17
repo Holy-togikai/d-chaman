@@ -189,10 +189,7 @@ private struct MountainKeywordList: View {
     @State private var onlyHyakumeizan = false
 
     private var results: [Mountain] {
-        // データは標高の高い順に並んだ状態で読み込んでいるので、並べ替えは不要。
-        mountains.filter { mountain in
-            (!onlyHyakumeizan || mountain.isHyakumeizan) && mountain.matches(query)
-        }
+        MountainData.search(query, onlyHyakumeizan: onlyHyakumeizan, in: mountains)
     }
 
     var body: some View {
