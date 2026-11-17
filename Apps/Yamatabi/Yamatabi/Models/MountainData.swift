@@ -18,6 +18,23 @@ enum MountainData {
     /// 副峰を含めた145地点が必要な場合は `all.filter(\.isHyakumeizan)` を使ってください。
     static let hyakumeizan: [Mountain] = all.filter(\.isHyakumeizanPeak)
 
+    /// キーワードで絞り込む。
+    ///
+    /// - Parameter onlyHyakumeizan: 日本百名山だけに限るか。
+    ///   `hyakumeizan` と同じ100座になるよう、代表の山頂だけを通します。
+    ///   `isHyakumeizan` で絞ると副峰（荒川岳の中岳など）まで入って145地点になり、
+    ///   百名山のタブと件数が食い違います。
+    static func search(
+        _ query: String,
+        onlyHyakumeizan: Bool,
+        in mountains: [Mountain] = all
+    ) -> [Mountain] {
+        // データは標高の高い順に並んだ状態で読み込んでいるので、並べ替えは不要。
+        mountains.filter { mountain in
+            (!onlyHyakumeizan || mountain.isHyakumeizanPeak) && mountain.matches(query)
+        }
+    }
+
     /// IDから山を引く。登山記録に残したIDから山を復元するのに使います。
     static func mountain(id: String) -> Mountain? {
         byID[id]
