@@ -37,6 +37,10 @@
 	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<!-- 端末が暗所モードでも、アプリは白基調のまま出す。
+	     地図のタイルが明るいので、周りだけ黒くすると落差で見づらくなるため。 -->
+	<key>UIUserInterfaceStyle</key>
+	<string>Light</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>arm64</string>
