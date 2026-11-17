@@ -13,15 +13,17 @@ struct HomeStageContent {
     func value(for stage: HikeStage) -> String? {
         switch stage {
         case .departure:
-            return schedule.map { time($0.leaveHomeAt) }
+            return schedule.flatMap { $0.leaveHomeAt }.map { time($0) }
         case .arrival:
-            return schedule.map { time($0.leaveHomeAt.addingTimeInterval($0.driveTime)) }
+            return schedule.flatMap { schedule in
+                schedule.leaveHomeAt.map { time($0.addingTimeInterval(schedule.driveTime)) }
+            }
         case .hiking:
             return schedule.map { time($0.startHikingAt) }
         case .meal:
             return plan.recipes.isEmpty ? "選ぶ" : "\(plan.recipes.count) 品"
         case .descent:
-            return schedule.map { time($0.descentDeadline) }
+            return schedule.map { time($0.descentAt) }
         case .detour:
             // 寄り道は何も保存していないので、ここは入口の案内だけです。
             return "探す"

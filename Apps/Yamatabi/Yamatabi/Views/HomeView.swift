@@ -179,8 +179,10 @@ struct HomeView: View {
     /// 計画の日より前に試し録りしているときは出しません。何日も先の期限との差を
     /// 「下山まであと152時間」と出しても、画面が壊れて見えるだけだからです。
     private func remainingUntilDescent(_ schedule: HikeSchedule?) -> TimeInterval? {
-        guard let schedule, now >= schedule.leaveHomeAt else { return nil }
-        return schedule.descentDeadline.timeIntervalSince(now)
+        guard let schedule else { return nil }
+        let start = schedule.leaveHomeAt ?? schedule.startHikingAt
+        guard now >= start else { return nil }
+        return schedule.descentAt.timeIntervalSince(now)
     }
 
     // MARK: - タイルの行き先

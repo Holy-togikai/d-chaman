@@ -53,6 +53,18 @@ final class HikePlan {
     /// 往復できるルートか。違う場合は車の回収方法を考える必要があります。
     var routeIsRoundTrip: Bool?
 
+    // --- 時間割 ---
+    /// 何を基準に時間を決めるか。
+    var scheduleBasisRaw: String = ScheduleBasis.sunset.rawValue
+    /// 自由設定のときに歩き出す時刻（その日の0時からの分）。既定は6:00。
+    var startHikingMinutes: Int = 6 * 60
+    /// 日の出の何秒後に歩き出すか（日の出基準）。
+    var sunriseOffset: TimeInterval = HikePlanner.defaultSunriseOffset
+    /// 日の入りの何秒前に下山を終えるか（日没基準）。
+    var sunsetMargin: TimeInterval = HikePlanner.defaultSunsetMargin
+    /// 休憩の合計。
+    var restTime: TimeInterval = HikePlanner.defaultRestTime
+
     // --- 山ごはん ---
     /// 選んだレシピのID。カンマ区切りで持ちます。
     /// 配列をそのまま持つより、保存の形が単純で移行に強いためです。
@@ -125,7 +137,12 @@ final class HikePlan {
         return TollEstimate(highwayDistance: estimatedHighwayDistance, vehicle: vehicle)
     }
 
-    /// 逆算した時刻。登山口と移動時間が未設定でも、分かる範囲で計算します。
+    var scheduleBasis: ScheduleBasis {
+        get { ScheduleBasis(rawValue: scheduleBasisRaw) ?? .sunset }
+        set { scheduleBasisRaw = newValue.rawValue }
+    }
+
+    /// 組み立てた時間割。出発地が未設定でも、分かる範囲で計算します。
     func schedule() -> HikeSchedule? {
         HikePlanner.schedule(
             HikePlanner.Input(
@@ -135,7 +152,14 @@ final class HikePlan {
                 date: date,
                 courseTime: courseTimeSeconds,
                 pace: pace,
-                driveTime: driveTimeSeconds ?? 0
+                // 移動時間が分からないまま家を出る時刻を出すと、間に合わない計画を
+                // 信じてしまう。危険な側に外すので、揃うまでは出さない。
+                driveTime: driveTimeSeconds,
+                basis: scheduleBasis,
+                startHikingMinutes: startHikingMinutes,
+                sunriseOffset: sunriseOffset,
+                sunsetMargin: sunsetMargin,
+                restTime: restTime
             )
         )
     }
@@ -191,7 +215,7 @@ final class HikePlan {
     /// 登る日ではなく家を出る時刻で見ます。富士宮口のように前日の深夜に出る計画があり、
     /// 日付で選ぶと、すでに車で走っている計画を「明日のこと」として扱ってしまうためです。
     var departureReference: Date {
-        schedule()?.leaveHomeAt ?? date
+        schedule().map { $0.leaveHomeAt ?? $0.startHikingAt } ?? date
     }
 
     /// この計画を「つぎの山行」として出しておく期限。
@@ -200,7 +224,7 @@ final class HikePlan {
     /// 下山期限から6時間（帰路のぶん）は残します。
     var relevanceDeadline: Date {
         if let schedule = schedule() {
-            return schedule.descentDeadline.addingTimeInterval(6 * 60 * 60)
+            return schedule.descentAt.addingTimeInterval(6 * 60 * 60)
         }
         return Calendar.current.startOfDay(for: date).addingTimeInterval(48 * 60 * 60)
     }
