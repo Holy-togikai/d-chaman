@@ -1,0 +1,97 @@
+{
+  "_rules": [
+    "タスクを削除しない。不要になったら status を dropped にし、evidence に理由を書く。",
+    "passes（完成条件）をAIが書き換えない。満たせないときは status を blocked にする。",
+    "status は planned / in_progress / review / done / blocked / dropped のいずれか。",
+    "evidence には『確認しました』ではなく、確認できる中身を書く（数値・画面名・コミットID）。",
+    "done にできるのは検品役だけ。実行役は review までしか進めない。",
+    "dependencies が done でないタスクは in_progress にしない。"
+  ],
+  "_status_values": [
+    "planned",
+    "in_progress",
+    "review",
+    "done",
+    "blocked",
+    "dropped"
+  ],
+  "tasks": [
+    {
+      "id": "T-001",
+      "task": "国土地理院へのオフライン地図の申請可否を確認する（人間の仕事）",
+      "status": "blocked",
+      "passes": [
+        "国土地理院へ問い合わせ、タイルの端末保存に申請が要るかの回答を得た",
+        "回答の内容を docs/requirements.md に書き、出典（問い合わせ日・窓口）を添えた"
+      ],
+      "evidence": "未着手。法令の判断はAIが行ってはいけないため、人間が窓口に確認する必要がある。これが決まるまで T-002 は始められない。",
+      "dependencies": []
+    },
+    {
+      "id": "T-002",
+      "task": "オフライン地図（範囲を指定してタイルを事前取得）",
+      "status": "blocked",
+      "passes": [
+        "T-001 の回答で、保存が許されることを確認済み",
+        "MapLibre Native へ移行し、MapKit 版と同じ表示ができる",
+        "機内モードで、取得済みの範囲が地図として表示される画面写真",
+        "出典表示が移行後も出ていることの画面写真"
+      ],
+      "evidence": "",
+      "dependencies": [
+        "T-001"
+      ]
+    },
+    {
+      "id": "T-003",
+      "task": "屋外の実機で、バックグラウンド記録と電池の持ちを確かめる",
+      "status": "planned",
+      "passes": [
+        "画面を消した状態で1時間以上歩き、軌跡が途切れずに記録された",
+        "記録前後の電池残量をメモし、1時間あたりの消費を算出した",
+        "のぼり（累積標高）が実際の地形と大きく外れていない",
+        "記録一覧の画面写真"
+      ],
+      "evidence": "シミュレータでは標高が常に0になるため、この確認は実機でしかできない（README 参照）。",
+      "dependencies": []
+    },
+    {
+      "id": "T-004",
+      "task": "山ごはんを食べる時刻を計画に持たせるか決める",
+      "status": "planned",
+      "passes": [
+        "持たせる／持たせないの判断と理由を docs/requirements.md に書いた",
+        "持たせる場合、ホームの山ごはんタイルに時刻が出る"
+      ],
+      "evidence": "現状はモデルに時刻が無いため、ホームのタイルは品数と買い出しの進み具合だけを出している。",
+      "dependencies": []
+    },
+    {
+      "id": "T-005",
+      "task": "コースタイムの収録を百名山以外へ広げる",
+      "status": "planned",
+      "passes": [
+        "収録ルート数が198から増え、増えた数を README に書いた",
+        "出典（どの県のどの資料か）を README に書いた",
+        "既存の198ルートが壊れていないことを、富士山富士宮口の11時間48分で確認した"
+      ],
+      "evidence": "",
+      "dependencies": []
+    },
+    {
+      "id": "T-006",
+      "task": "App Store 公開の準備（Phase 5）",
+      "status": "planned",
+      "passes": [
+        "Apple Developer Program の加入（人間が決済する）",
+        "アプリ名・説明文・スクリーンショット・プライバシー表示を用意した",
+        "審査提出前に人間の承認を得た"
+      ],
+      "evidence": "現在は無料のApple IDで署名しているため7日で期限が切れる。公開には有料加入が要る。",
+      "dependencies": [
+        "T-002",
+        "T-003"
+      ]
+    }
+  ]
+}
