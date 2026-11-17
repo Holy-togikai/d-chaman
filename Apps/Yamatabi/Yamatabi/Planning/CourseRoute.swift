@@ -2,7 +2,8 @@ import Foundation
 
 /// 調査済みの登山ルート。標準コースタイムと、公式の体力度・難易度が入っています。
 ///
-/// 出典: 十県一山域の日本百名山の「登山ルートグレーディング」一覧表（各県公表）
+/// 出典: 各県が公表する「山のグレーディング」一覧表。
+/// 詳しくは README の「コースタイムのデータ」を参照。
 struct CourseRoute: Identifiable, Codable, Hashable {
     /// 地理院の山ID（副峰の枝番を含む）。
     let mountainID: String
@@ -49,7 +50,8 @@ struct CourseRoute: Identifiable, Codable, Hashable {
 
 /// 同梱している登山ルートのデータ。
 ///
-/// 出典: 十県一山域の日本百名山の「登山ルートグレーディング」一覧表。
+/// 出典: 各県が公表する「山のグレーディング」一覧表。
+/// 詳しくは README の「コースタイムのデータ」を参照。
 /// `Tools/parse_grading.py` と `Tools/match_routes.py` で、公表されている PDF から
 /// 生成しています。**全国すべての山を網羅してはいません**（百名山を中心に75山）。
 /// 収録が無い山では、標高差からの概算を使ってください。
