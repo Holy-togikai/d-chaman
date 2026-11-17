@@ -26,10 +26,10 @@ enum HikeStage: String, CaseIterable, Identifiable {
         switch self {
         case .departure: "car.fill"
         case .arrival: "parkingsign.circle.fill"
-        case .hiking: "figure.hiking"
+        case .hiking: "mountain.2.fill"
         case .meal: "fork.knife"
         case .descent: "sunset.fill"
-        case .detour: "drop.fill"
+        case .detour: "mappin.and.ellipse"
         }
     }
 }
