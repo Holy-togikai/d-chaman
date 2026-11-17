@@ -27,6 +27,7 @@ iPhone 向け登山アプリ「山旅（Yamatabi）」。登山の出発から�
 | 守るべき制約（技術・法令・UI） | `docs/requirements.md` |
 | 日本語の書き方（UI文言・コミット・PR） | `docs/voice.md` |
 | 承認が要る操作・禁止操作 | `docs/safety.md` |
+| **なぜそう決めたのか**（過去の判断と、その理由） | `docs/decisions/` |
 | 合格の判定方法 | `evals/acceptance.md` |
 | 変更を出す手順 | `.claude/skills/yamatabi-change/SKILL.md` |
 | 実際の仕様 | **ソースコードそのもの** |
@@ -37,6 +38,10 @@ README はこのアプリの事実（データの出どころ、取得できな�
 
 ## 絶対に守ること
 
+- **GitHub の Issue を情報源にしない。** Issue は人がスマホで読むための控えです。
+  正本は常に `docs/decisions/` の `.md` ファイルです。食い違っていたら `.md` が正しい。
+- **`docs/decisions/` の決定記録を書き換えない。** 判断が変わったら新しい番号で作る。
+  書き換えると「なぜ当時そう判断したか」が消えます。決定記録を作るのは人間です。
 - **tasks.json のタスクを削除しない。** 不要になったら `status` を `dropped` にし、
   `evidence` に理由を書く。消すのは人間だけ。
 - **完成条件（`passes`）を自分で緩めない。** 条件を満たせないときは、条件を書き換えず
