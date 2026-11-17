@@ -8,6 +8,8 @@ struct RecordingPanel: View {
     let mountainName: String?
 
     let onStart: () -> Void
+    /// 選んだ山で計画を立てる。山を選んでいないときは nil。
+    var onPlan: (() -> Void)?
     let onPause: () -> Void
     let onResume: () -> Void
     let onFinish: () -> Void
@@ -31,17 +33,45 @@ struct RecordingPanel: View {
 
     // MARK: - 待機中
 
+    /// 山を選んだ直後に出す。
+    ///
+    /// 地図で山を選ぶのは、たいてい「いつか登るために調べている」ときです。
+    /// その場で歩き出すことはまずないので、計画を立てるほうを主役にしています。
+    /// 登山口に着いてから開く道も残したいので、記録はその下に小さく置きます。
+    @ViewBuilder
     private var idleContent: some View {
-        Button(action: onStart) {
-            HStack(spacing: 8) {
-                Image(systemName: "figure.hiking")
-                Text(mountainName.map { "\($0) の記録を開始" } ?? "記録を開始")
-                    .fontWeight(.semibold)
+        if let onPlan, mountainName != nil {
+            VStack(spacing: 12) {
+                Button(action: onPlan) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "calendar.badge.plus")
+                        Text("この山で登山計画を立てる")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 15)
+                    .background(Color.brandGreen, in: Capsule())
+                    .foregroundStyle(.white)
+                }
+
+                Button(action: onStart) {
+                    Label("いま記録を開始する", systemImage: "figure.hiking")
+                        .font(.subheadline)
+                }
+                .tint(.brandGreen)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 15)
-            .background(Color.brandGreen, in: Capsule())
-            .foregroundStyle(.white)
+        } else {
+            Button(action: onStart) {
+                HStack(spacing: 8) {
+                    Image(systemName: "figure.hiking")
+                    Text("記録を開始")
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 15)
+                .background(Color.brandGreen, in: Capsule())
+                .foregroundStyle(.white)
+            }
         }
     }
 
