@@ -26,6 +26,9 @@ struct PlanEditorView: View {
     @State private var isShowingPostHike = false
     @State private var isShowingMeals = false
 
+    /// 日付ピッカーを畳むための札。日付が変わるたびに新しくします。
+    @State private var datePickerToken = UUID()
+
     @State private var routeError: String?
     @State private var isCalculatingRoute = false
 
@@ -121,8 +124,12 @@ struct PlanEditorView: View {
 
     private var dateSection: some View {
         Section("登る日") {
+            // 日付を選んでもカレンダーが開いたままになるため、選ばれた時点で
+            // id を変えて組み立て直し、カレンダーを畳んでいる。
             DatePicker("日付", selection: $plan.date, displayedComponents: .date)
                 .datePickerStyle(.compact)
+                .id(datePickerToken)
+                .onChange(of: plan.date) { _, _ in datePickerToken = UUID() }
         }
     }
 

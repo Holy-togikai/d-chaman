@@ -78,7 +78,9 @@ struct HikeProgress {
 
         // 山ごはんには時刻がありません（モデルに持っていないため）。
         // 時系列に並べるのは時刻のある4つだけで、山ごはんと寄り道は別に扱います。
-        let arrival = schedule.leaveHomeAt.addingTimeInterval(schedule.driveTime)
+        // 出発地が未設定なら「家を出る」「移動」の段はないので、歩き出す時刻を起点にする。
+        let leaveHome = schedule.leaveHomeAt ?? schedule.startHikingAt
+        let arrival = leaveHome.addingTimeInterval(schedule.driveTime)
 
         if isRecording {
             return HikeProgress(
@@ -88,11 +90,11 @@ struct HikeProgress {
             )
         }
 
-        if now < schedule.leaveHomeAt {
+        if now < leaveHome {
             return HikeProgress(
                 current: nil,
                 finished: [],
-                timeUntilDeparture: schedule.leaveHomeAt.timeIntervalSince(now)
+                timeUntilDeparture: leaveHome.timeIntervalSince(now)
             )
         }
 
@@ -108,7 +110,7 @@ struct HikeProgress {
             )
         }
 
-        if now < schedule.descentDeadline {
+        if now < schedule.descentAt {
             return HikeProgress(
                 current: .hiking,
                 finished: [.departure, .arrival],

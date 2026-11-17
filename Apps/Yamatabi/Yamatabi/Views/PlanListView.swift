@@ -91,7 +91,8 @@ struct PlanListView: View {
                 if plan.driveTimeSeconds != nil {
                     HStack(spacing: 4) {
                         Image(systemName: "car.fill")
-                        Text("出発 " + schedule.leaveHomeAt.formatted(date: .omitted, time: .shortened))
+                        Text("出発 " + (schedule.leaveHomeAt ?? schedule.startHikingAt)
+                            .formatted(date: .omitted, time: .shortened))
                             .monospacedDigit()
                     }
                     .font(.caption.weight(.medium))
