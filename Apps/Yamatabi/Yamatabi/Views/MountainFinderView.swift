@@ -142,7 +142,13 @@ private struct HyakumeizanList: View {
                      + "地理院の登録名と呼び名が違う山は、下に登録名を添えています。")
             }
         }
-        .searchable(text: $query, prompt: "山名・ふりがな・都道府県")
+        // iOS 26 の既定では検索欄が画面下に付く。山を探すのは最初にやることなので、
+        // ナビゲーションバーの下に置いて、開いた瞬間に目に入るようにしている。
+        .searchable(
+            text: $query,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "山名・ふりがな・都道府県"
+        )
         .overlay {
             if results.isEmpty {
                 ContentUnavailableView.search(text: query)
@@ -207,7 +213,13 @@ private struct MountainKeywordList: View {
                 attributionFooter
             }
         }
-        .searchable(text: $query, prompt: "山名・ふりがな・都道府県")
+        // iOS 26 の既定では検索欄が画面下に付く。山を探すのは最初にやることなので、
+        // ナビゲーションバーの下に置いて、開いた瞬間に目に入るようにしている。
+        .searchable(
+            text: $query,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "山名・ふりがな・都道府県"
+        )
         .overlay {
             if results.isEmpty {
                 ContentUnavailableView.search(text: query)
