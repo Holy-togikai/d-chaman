@@ -1,0 +1,9 @@
+# テスト用の設定。親の .swiftlint.yml を引き継ぎ、ここだけ緩めています。
+
+parent_config: ../.swiftlint.yml
+
+disabled_rules:
+  # テストの名前は日本語にしています。何を保証しているかが読んで分かるほうが、
+  # 失敗したときに原因へ早く辿り着けるためです。
+  # identifier_name は先頭を小文字にすることを求めますが、日本語に大文字小文字はありません。
+  - identifier_name

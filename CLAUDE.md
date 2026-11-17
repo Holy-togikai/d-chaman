@@ -16,7 +16,7 @@
 | やりたいこと | 使うもの |
 |---|---|
 | ビルド | `xcodebuild`（シミュレータ用・実機用はセクション下部） |
-| 静的検査 | `swiftlint lint --quiet --config Apps/Yamatabi/.swiftlint.yml` |
+| 静的検査 | `cd Apps/Yamatabi && swiftlint lint --quiet` |
 | 画面の確認 | iOS Simulator の MCP ツール（`mcp__Claude_Code_iOS_Simulator__control`） |
 | 実機への配置 | `xcrun devicectl` |
 | PR | `gh`（`/opt/homebrew/bin/gh`） |
@@ -37,6 +37,9 @@ UDID は `xcrun devicectl list devices` で調べます。
 - **シミュレータの画面写真は `scale` を 0.3〜0.45 にする。** 等倍だと読み取りの
   コストが高いだけで、得られる情報は変わりません。
 - **1行の `swiftlint` と `xcodebuild` は必ず `grep` で絞る。** 全文を読む価値はありません。
+- **`swiftlint` に `--config` を付けない。** 付けると `YamatabiTests/.swiftlint.yml`
+  （テストだけ緩めている設定）が読まれず、日本語のテスト名が全部違反になります。
+  `Apps/Yamatabi` に移ってから引数なしで実行してください。
 - **ファイルを書き換えたら、読み返して確認しない。** Edit が失敗すればエラーが返ります。
 - **シミュレータの UDID はセッションごとに変わりうる。** 決め打ちせず毎回調べる。
 - **日本語入力はシミュレータでは打てない。** 日本語の検索などを確かめたいときは
