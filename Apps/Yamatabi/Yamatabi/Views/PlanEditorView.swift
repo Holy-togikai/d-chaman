@@ -11,9 +11,9 @@ struct PlanEditorView: View {
     @StateObject private var locationProvider = CurrentLocationProvider()
     @ObservedObject private var settings = UserSettings.shared
 
-    @State private var weather: [DailyWeather] = []
-    @State private var weatherError: String?
-    @State private var isLoadingWeather = false
+    @State var weather: WeatherForecast = .empty
+    @State var weatherFailure: WeatherService.Failure?
+    @State var isLoadingWeather = false
 
     @State private var isPickingParking = false
     @State private var isSearchingOrigin = false
@@ -48,8 +48,10 @@ struct PlanEditorView: View {
             PlanWeatherSection(
                 forecast: weather,
                 date: plan.date,
+                summit: plan.summitCoordinate,
                 isLoading: isLoadingWeather,
-                errorMessage: weatherError
+                failure: weatherFailure,
+                onRetry: { Task { await loadWeather() } }
             )
             PlanExtrasSection(
                 plan: plan,
@@ -291,18 +293,25 @@ struct PlanEditorView: View {
         }
     }
 
-    private func loadWeather() async {
+}
+
+// MARK: - 天気
+
+extension PlanEditorView {
+    func loadWeather() async {
         isLoadingWeather = true
-        weatherError = nil
+        weatherFailure = nil
         defer { isLoadingWeather = false }
 
         do {
             weather = try await WeatherService.forecast(
                 latitude: plan.summitLatitude,
-                longitude: plan.summitLongitude
+                longitude: plan.summitLongitude,
+                elevation: plan.summitElevation
             )
         } catch {
-            weatherError = error.localizedDescription
+            // WeatherService 以外から来た誤りも、利用者には同じ見え方にします。
+            weatherFailure = error as? WeatherService.Failure ?? .network(error)
         }
     }
 }
