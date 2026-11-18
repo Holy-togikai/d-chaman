@@ -220,6 +220,41 @@ struct HikePlanTests {
         #expect(progress.timeUntilDeparture == nil)
     }
 
+    // MARK: - 山ごはんの調理時間
+
+    /// 食べる時刻は持たず、かかる時間だけを扱う（T-004 の判断）。
+    @Test func レシピを選ばなければ調理時間はゼロ() throws {
+        let context = try Self.makeContext()
+        let plan = Self.makePlan(in: context, on: Self.date(2026, 8, 10))
+        #expect(plan.cookingTime == 0)
+    }
+
+    /// バーナーは1台のことが多いので、2品なら順番に作る。だから足し算になる。
+    @Test func 複数のレシピの調理時間は足される() throws {
+        let context = try Self.makeContext()
+        let plan = Self.makePlan(in: context, on: Self.date(2026, 8, 10))
+        let two = Array(RecipeData.all.prefix(2))
+        try #require(two.count == 2, "レシピが2品以上必要です")
+        plan.recipes = two
+
+        let expected = Double(two[0].cookingMinutes + two[1].cookingMinutes) * 60
+        let message = """
+            \(two[0].cookingMinutes)分＋\(two[1].cookingMinutes)分のはず。\
+            実際は \(Int(plan.cookingTime / 60))分
+            """
+        #expect(plan.cookingTime == expected, "\(message)")
+    }
+
+    /// 人数を変えても調理時間は変わらない。量が増えても、作る手順は同じだから。
+    @Test func 人数を変えても調理時間は変わらない() throws {
+        let context = try Self.makeContext()
+        let plan = Self.makePlan(in: context, on: Self.date(2026, 8, 10))
+        plan.recipes = Array(RecipeData.all.prefix(2))
+        let twoPeople = plan.cookingTime
+        plan.mealServings = 4
+        #expect(plan.cookingTime == twoPeople)
+    }
+
     // MARK: - 高速料金の概算
 
     @Test func 高速料金の概算は50円単位で丸める() {
