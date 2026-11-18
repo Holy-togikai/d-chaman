@@ -11,16 +11,26 @@ struct CourseRouteDataTests {
 
     // MARK: - 収録の規模
 
-    @Test func ルートが300件以上ある() {
+    @Test func ルートが400件以上ある() {
         #expect(
-            CourseRouteData.all.count >= 300,
+            CourseRouteData.all.count >= 400,
             "収録が減っています。実際は \(CourseRouteData.all.count) 件"
         )
     }
 
-    @Test func 対象の山が150座以上ある() {
+    @Test func 対象の山が200座以上ある() {
         let mountains = Set(CourseRouteData.all.map(\.mountainID))
-        #expect(mountains.count >= 150, "実際は \(mountains.count) 山")
+        #expect(mountains.count >= 200, "実際は \(mountains.count) 山")
+    }
+
+    /// グレーディングを公表している県が、すべて収録されていること。
+    /// 片方の出どころだけを取り込むと、県がまるごと抜け落ちます。
+    @Test func 公表している11の県と山域がそろっている() {
+        let prefectures = Set(CourseRouteData.all.map(\.prefecture))
+        for name in ["長野県", "山梨県", "新潟県", "富山県", "岐阜県", "静岡県",
+                     "群馬県", "山形県", "栃木県", "秋田県", "石鎚山系"] {
+            #expect(prefectures.contains(name), "\(name) のルートが1件もありません")
+        }
     }
 
     // MARK: - 既知の値
