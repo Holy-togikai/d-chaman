@@ -123,6 +123,7 @@ struct PlanScheduleSection: View {
 
         Section {
             sunsetVerdict(schedule)
+            cookingNote(schedule)
             if schedule.startsBeforeSunrise {
                 Label(
                     "\(schedule.headline.title)のは日の出前です。"
@@ -166,11 +167,42 @@ struct PlanScheduleSection: View {
                 .font(.callout)
                 .foregroundStyle(margin < 30 * 60 ? Color.orange : Color.brandGreen)
         }
-        let text = "日の入りに\(duration(-margin))間に合いません。"
+        // 「2時間2分間に合いません」と読めてしまうため、「過ぎます」で言い切る。
+        let text = "下山が日の入り（\(time(schedule.sunset))）を\(duration(-margin))過ぎます。"
             + "歩き出しを早めるか、コースを短くしてください。"
         return Label(text, systemImage: "exclamationmark.triangle.fill")
             .font(.callout)
             .foregroundStyle(.red)
+    }
+
+    /// 山ごはんの調理時間と、休憩の合計との関係。
+    ///
+    /// 調理のぶんは休憩の中に含まれます。2品で45〜50分かかるので、
+    /// 休憩の既定（1時間）だと、ほとんどが調理で埋まります。
+    /// 超えていれば下山が遅れるので、知らせます。
+    @ViewBuilder
+    private func cookingNote(_ schedule: HikeSchedule) -> some View {
+        let cooking = plan.cookingTime
+        if cooking > 0 {
+            if cooking > schedule.restTime {
+                Label(
+                    "山ごはんの調理に\(duration(cooking))かかります。"
+                        + "休憩の合計（\(duration(schedule.restTime))）を超えるので、"
+                        + "そのぶん下山が遅くなります。",
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(.orange)
+            } else {
+                Label(
+                    "山ごはんの調理に\(duration(cooking))。"
+                        + "休憩の合計（\(duration(schedule.restTime))）に収まっています。",
+                    systemImage: "fork.knife"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+        }
     }
 
     private func breakdown(_ schedule: HikeSchedule) -> String {

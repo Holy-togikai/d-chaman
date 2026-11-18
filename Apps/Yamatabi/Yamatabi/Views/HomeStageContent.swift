@@ -41,7 +41,10 @@ struct HomeStageContent {
             return schedule.map { TrackStatistics.hourMinuteText($0.courseTime) }
         case .meal:
             guard !plan.recipes.isEmpty else { return nil }
-            return "買い出し \(plan.purchasedIngredientIDs.count)/\(shoppingItemCount)"
+            let cooking = "調理\(minutes(plan.cookingTime))"
+            let bought = plan.purchasedIngredientIDs.count
+            if bought >= shoppingItemCount { return cooking }
+            return "\(cooking) ・ 買い出し\(bought)/\(shoppingItemCount)"
         case .descent:
             return schedule.map { "日の入り \(time($0.sunset))" }
         case .detour:
@@ -62,6 +65,11 @@ struct HomeStageContent {
             text += " ・ \(toll.amountText)"
         }
         return text
+    }
+
+    /// 「50分」「1時間5分」。タイルは狭いので、短く出します。
+    private func minutes(_ interval: TimeInterval) -> String {
+        TrackStatistics.hourMinuteText(interval)
     }
 
     private var shoppingItemCount: Int {

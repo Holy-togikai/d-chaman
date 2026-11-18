@@ -174,6 +174,17 @@ final class HikePlan {
         set { recipeIDsText = newValue.map(\.id).joined(separator: ",") }
     }
 
+    /// 選んだレシピの調理時間の合計。
+    ///
+    /// 山で使えるバーナーはふつう1台なので、2品作るなら順番に作ることになります。
+    /// そのため単純に足しています。2品で45〜50分、休憩の既定（1時間）の大半を使います。
+    ///
+    /// **食べる時刻は持ちません。** 山頂で食べるか途中で食べるかは、その日の天気と
+    /// 体調で変わります。当たらない時刻を出すより、かかる時間を示すほうが役に立ちます。
+    var cookingTime: TimeInterval {
+        recipes.reduce(0) { $0 + Double($1.cookingMinutes) * 60 }
+    }
+
     /// 買い物を済ませた材料。
     var purchasedIngredientIDs: Set<String> {
         get { Set((purchasedIngredientIDsText ?? "").split(separator: ",").map(String.init)) }

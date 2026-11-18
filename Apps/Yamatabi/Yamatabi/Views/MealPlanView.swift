@@ -62,8 +62,17 @@ struct MealPlanView: View {
                 )
             }
         } footer: {
-            Text("人数を変えると、材料の量も一緒に変わります。")
+            Text(servingsFooter)
         }
+    }
+
+    private var servingsFooter: String {
+        var text = "人数を変えると、材料の量も一緒に変わります。"
+        guard !selected.isEmpty else { return text }
+        // バーナーは1台のことが多いので、2品なら順番に作ることになります。
+        let cooking = TrackStatistics.hourMinuteText(plan.cookingTime)
+        text += "選んだ\(selected.count)品を順に作ると、調理に\(cooking)かかります。"
+        return text
     }
 
     @ViewBuilder
