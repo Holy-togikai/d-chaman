@@ -32,12 +32,8 @@ TAIL = re.compile(
 # 体力度（1〜10）と難易度（A〜E）。ここから右が地点の情報になる。
 GRADE = re.compile(r"(?<![\d.])(?P<fitness>10|[1-9])\s+(?P<difficulty>[A-E])(?![A-Za-z])")
 
-# 「地名 標高 地名 標高 地名」。標高には桁区切りと小数とmが混ざる。
-PLACES = re.compile(
-    r"^(?P<start_name>.+?)\s+(?P<start_elev>[\d,]+(?:\.\d+)?)\s*m?\s+"
-    r"(?P<summit_name>.+?)\s+(?P<summit_elev>[\d,]+(?:\.\d+)?)\s*m?\s+"
-    r"(?P<end_name>.+?)\s*$"
-)
+# 標高らしいトークン。「1,393」「1,091.2m」「494」。
+ELEVATION = re.compile(r"^[\d,]+(?:\.\d+)?m?$")
 
 # ルート名の前に付く通し番号。
 # 富山の表は左端に山域名が縦書きで入っており、1文字だけ行頭に紛れ込む
@@ -57,13 +53,18 @@ KANA_ONLY = re.compile(r"[ぁ-ゖー]+$")
 # 単独の語として立っていて、かつ先頭でないときだけ落とす。
 # 先頭から消すと「御嶽山（飯森高原駅）」が「（飯森高原駅）」になってしまう。
 AREAS = frozenset({
+    # 岐阜
     "北アルプス", "中央アルプス", "南アルプス", "御嶽山", "白山",
-    "奥美濃", "奥三河", "飛騨高地", "伊吹・鈴鹿",
+    "奥美濃", "奥三河", "飛騨高地", "伊吹・鈴鹿", "その他",
+    # 山梨
+    "大菩薩・道志", "富士・御坂", "八ヶ岳・秩父",
+    # 静岡
+    "富士・愛鷹", "伊豆", "遠州", "大井川流域", "天竜", "安倍奥",
 })
 
 
 def clean_number(value):
-    return float(value.replace(",", ""))
+    return float(value.replace(",", "").rstrip("m"))
 
 
 def normalize_spaces(text):
@@ -84,11 +85,48 @@ def strip_decorations(route):
         if index == 0 or token not in AREAS
     ]
     text = " ".join(tokens)
+    # 「（往復）」などを外したあとに残る空の括弧を片づける。
+    text = re.sub(r"[（(]\s*[）)]", " ", text)
+    text = re.sub(r"[＜<]\s*[＞>]", " ", text)
     # 末尾のよみがな（ひらがなだけの塊）。
     parts = text.split(" ")
     while parts and KANA_ONLY.fullmatch(parts[-1] or ""):
         parts.pop()
     return " ".join(parts).strip()
+
+
+def split_places(middle):
+    """「地名 標高 地名 標高 地名」を切り分ける。
+
+    岐阜の表はセルの中で文字が上下に割れており、地名だけが別の行に出てしまいます
+    （「焼岳中尾」「登山口」が上下に分かれる）。そのため地名が欠けた行が多く出ます。
+    列の位置ではなく「標高らしいトークンが2つある」ことを手がかりに切ると、
+    どこが欠けていても同じやり方で扱えます。
+
+    戻り値は (出発地名, 出発標高, 山頂名, 山頂標高, 終了地名)。名前は欠けていれば空。
+    """
+    tokens = middle.split(" ")
+    spots = [index for index, token in enumerate(tokens) if ELEVATION.match(token)]
+    if len(spots) != 2:
+        # 標高が2つでないなら、どの数値が何なのか決められない。
+        # 取り違えるとコースタイムの根拠が狂うので、諦める。
+        return None
+    first, second = spots
+    return (
+        " ".join(tokens[:first]).strip(),
+        tokens[first],
+        " ".join(tokens[first + 1:second]).strip(),
+        tokens[second],
+        " ".join(tokens[second + 1:]).strip(),
+    )
+
+
+def parenthetical(route):
+    """ルート名の括弧の中身。表の約束として、ここが出発地（縦走なら出発地・終了地）。"""
+    found = re.search(r"[（(]([^）)]*)[）)]", route)
+    if not found:
+        return []
+    return [part.strip() for part in found.group(1).split("・") if part.strip()]
 
 
 def mountain_name(route):
@@ -120,10 +158,11 @@ def parse_line(line, prefecture, pending=()):
     if grade is None:
         return None
 
-    middle = body[grade.end():tail.start()].strip()
-    places = PLACES.match(middle)
+    middle = normalize_spaces(body[grade.end():tail.start()])
+    places = split_places(middle)
     if not places:
         return None
+    start_name, start_elev, summit_name, summit_elev, end_name = places
 
     head = body[:grade.start()].strip()
     number_match = LEADING.match(head)
@@ -134,6 +173,12 @@ def parse_line(line, prefecture, pending=()):
     # 数値は揃っているので、名前を前の行から補う。
     if pending and (not own or own.startswith(("〈", "＜", "(", "（", "<"))):
         parts = list(pending)
+        # 岐阜の表はセルの中で文字が上下に割れるため、前の行に
+        # 「焼岳中尾 焼岳中尾」のような断片や備考が紛れ込みます。
+        # ルート名は通し番号から始まるので、番号の行より前は捨てる。
+        numbered = [i for i, text in enumerate(parts) if re.match(r"^\d+\s", text)]
+        if numbered:
+            parts = parts[numbered[-1]:]
         # 通し番号は前の行の先頭に付いている。名前から外して番号として採る。
         first = LEADING.match(parts[0])
         if first:
@@ -145,9 +190,21 @@ def parse_line(line, prefecture, pending=()):
     if not route:
         return None
 
-    start_name = normalize_spaces(places.group("start_name"))
-    end_name = normalize_spaces(places.group("end_name"))
-    summit_name = normalize_spaces(places.group("summit_name"))
+    # 欠けた地名を補う。表の約束として、括弧の中が出発地（縦走なら出発地・終了地）、
+    # ルート名の先頭が山名です。
+    spots = parenthetical(route)
+    if not start_name and spots:
+        start_name = spots[0]
+    if not summit_name:
+        summit_name = mountain_name(route)
+    if not end_name:
+        same_place = clean_number(start_elev) == clean_number(tail.group("end_elev"))
+        if same_place:
+            end_name = start_name
+        elif len(spots) >= 2:
+            end_name = spots[-1]
+    if not start_name or not summit_name or not end_name:
+        return None
 
     return {
         "number": number,
@@ -156,9 +213,9 @@ def parse_line(line, prefecture, pending=()):
         "fitnessLevel": int(grade.group("fitness")),
         "difficultyLevel": grade.group("difficulty"),
         "startName": start_name,
-        "startElevation": clean_number(places.group("start_elev")),
+        "startElevation": clean_number(start_elev),
         "summitName": summit_name,
-        "summitElevation": clean_number(places.group("summit_elev")),
+        "summitElevation": clean_number(summit_elev),
         "endName": end_name,
         "endElevation": clean_number(tail.group("end_elev")),
         # 出発地と終了地が同じなら往復。違えば縦走・周回で、車で戻れない点に注意が要る。
