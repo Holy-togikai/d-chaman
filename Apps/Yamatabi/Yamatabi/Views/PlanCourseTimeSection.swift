@@ -83,7 +83,7 @@ struct PlanCourseTimeSection: View {
                    : "上の登山ルートから選ぶと、公表されている標準コースタイムを使えます。")
         }
         if plan.courseTimeSource == .researched {
-            return "出典: 十県一山域の日本百名山「登山ルートグレーディング」一覧表（各県公表）。"
+            return "出典: 各県が公表する「山のグレーディング」一覧表。"
         }
         return plan.courseTimeSource.label + "を使っています。"
     }
