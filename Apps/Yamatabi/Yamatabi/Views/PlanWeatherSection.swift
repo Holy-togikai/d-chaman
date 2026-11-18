@@ -3,7 +3,7 @@ import SwiftUI
 
 /// 山頂の天気を表示するセクション。
 struct PlanWeatherSection: View {
-    let forecast: [DailyWeather]
+    let forecast: WeatherForecast
     let date: Date
     /// 山頂の座標。取得できなかったときに、代わりの天気サイトを開くのに使います。
     let summit: CLLocationCoordinate2D
@@ -23,6 +23,14 @@ struct PlanWeatherSection: View {
             } else if let failure {
                 failureContent(failure)
             } else if let day = dayForDate {
+                if forecast.source.isFallback {
+                    Label(
+                        "本来の提供元から取れなかったため、控えの提供元の予報です。",
+                        systemImage: "arrow.triangle.2.circlepath"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
                 summary(day)
                 if let warning = day.warning {
                     Label(warning, systemImage: "exclamationmark.triangle.fill")
@@ -39,7 +47,8 @@ struct PlanWeatherSection: View {
         } header: {
             Text("山頂の天気")
         } footer: {
-            Text("気象データ: Open-Meteo.com（CC BY 4.0）。山頂の標高を加味した予報です。")
+            // 出典の表示は、どちらの提供元でも利用の条件です。消さないでください。
+            Text(forecast.source.attribution)
         }
     }
 
@@ -85,7 +94,16 @@ struct PlanWeatherSection: View {
 
     private var dayForDate: DailyWeather? {
         let calendar = Calendar.current
-        return forecast.first { calendar.isDate($0.date, inSameDayAs: date) }
+        return forecast.days.first { calendar.isDate($0.date, inSameDayAs: date) }
+    }
+
+    /// 「-8℃ / -18℃ ・ 降水 28% ・ 風 3m/s」。
+    /// 降水確率が無い提供元のときは、雨量に置き換わります。
+    private func detail(_ day: DailyWeather) -> String {
+        var parts = ["\(Int(day.temperatureMax))℃ / \(Int(day.temperatureMin))℃"]
+        if let precipitation = day.precipitationText { parts.append(precipitation) }
+        parts.append("風 \(Int(day.windSpeed))m/s")
+        return parts.joined(separator: " ・ ")
     }
 
     private func summary(_ day: DailyWeather) -> some View {
@@ -96,11 +114,7 @@ struct PlanWeatherSection: View {
                 .frame(width: 44)
             VStack(alignment: .leading, spacing: 3) {
                 Text(day.code.label).font(.body.weight(.medium))
-                Text(
-                    "\(Int(day.temperatureMax))℃ / \(Int(day.temperatureMin))℃"
-                    + " ・ 降水 \(day.precipitationProbability)%"
-                    + " ・ 風 \(Int(day.windSpeed))m/s"
-                )
+                Text(detail(day))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }

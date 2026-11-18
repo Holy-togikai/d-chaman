@@ -7,8 +7,10 @@ struct DailyWeather: Identifiable, Equatable {
     let code: WeatherCode
     let temperatureMax: Double
     let temperatureMin: Double
-    /// 降水確率（%）
-    let precipitationProbability: Int
+    /// 降水確率（%）。met.no は日本向けに出さないため、そのときは nil。
+    let precipitationProbability: Int?
+    /// 降水量（mm）。Open-Meteo からは取っていないため、そのときは nil。
+    let precipitationAmount: Double?
     /// 最大風速（m/s）
     let windSpeed: Double
 
@@ -16,8 +18,23 @@ struct DailyWeather: Identifiable, Equatable {
     var warning: String? {
         if windSpeed >= 15 { return "風が強すぎます（\(Int(windSpeed))m/s）" }
         if code.isSevere { return "荒天の予報です" }
-        if precipitationProbability >= 70 { return "降水確率が高めです（\(precipitationProbability)%）" }
+        if let probability = precipitationProbability, probability >= 70 {
+            return "降水確率が高めです（\(probability)%）"
+        }
+        // 降水確率が無いときは降水量で見ます。1日10mmは、山では終日濡れる量です。
+        if let amount = precipitationAmount, amount >= 10 {
+            return "雨量が多めです（\(String(format: "%.0f", amount))mm）"
+        }
         if windSpeed >= 10 { return "風がやや強めです（\(Int(windSpeed))m/s）" }
+        return nil
+    }
+
+    /// 「降水 30%」「雨量 12mm」。どちらも無ければ空。
+    var precipitationText: String? {
+        if let precipitationProbability { return "降水 \(precipitationProbability)%" }
+        if let precipitationAmount {
+            return "雨量 \(String(format: "%.0f", precipitationAmount))mm"
+        }
         return nil
     }
 }
@@ -113,6 +130,33 @@ enum WeatherCode: Int, Equatable {
     }
 }
 
+/// 予報の提供元。出典の表示に使います。どちらも表示が利用の条件です。
+enum WeatherSource: Equatable {
+    case openMeteo
+    case metNo
+
+    var attribution: String {
+        switch self {
+        case .openMeteo:
+            "気象データ: Open-Meteo.com（CC BY 4.0）。山頂の標高を加味した予報です。"
+        case .metNo:
+            "気象データ: Meteorologisk institutt（MET Norway）。山頂の標高を加味した予報です。"
+                + "この提供元は日本向けの降水確率を出さないため、雨量で表示しています。"
+        }
+    }
+
+    /// 控えの提供元から取ったか。画面でその旨を添えるために使います。
+    var isFallback: Bool { self == .metNo }
+}
+
+/// 取得できた予報と、その出どころ。
+struct WeatherForecast: Equatable {
+    let days: [DailyWeather]
+    let source: WeatherSource
+
+    static let empty = WeatherForecast(days: [], source: .openMeteo)
+}
+
 /// 山頂の天気予報を取得する。
 ///
 /// 提供元: Open-Meteo（https://open-meteo.com）。APIキー不要で、
@@ -155,10 +199,72 @@ enum WeatherService {
         }
     }
 
+    /// URLError を、利用者から見た失敗の種類に直す。
+    static func failure(for error: URLError) -> Failure {
+        switch error.code {
+        case .timedOut, .notConnectedToInternet, .networkConnectionLost,
+             .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
+            .unreachable
+        default:
+            .network(error)
+        }
+    }
+
+    /// 予報を取る。Open-Meteo が駄目なら met.no を試す。
+    ///
+    /// 提供元が1つだと、そこが落ちている間は何も出せません。山に行くかどうかは
+    /// 天気で決まるので、控えを持ちます。
+    /// 両方駄目なときは、**最初の失敗**を投げます。利用者にとっては
+    /// 「予報が取れなかった」という1つのことだからです。
     static func forecast(
         latitude: Double,
         longitude: Double,
+        elevation: Double,
         days: Int = 14
+    ) async throws -> WeatherForecast {
+        do {
+            let openMeteo = try await openMeteoForecast(
+                latitude: latitude, longitude: longitude, days: days
+            )
+            // 空の配列が返ることもあるので、中身がないなら控えに回します。
+            if !openMeteo.isEmpty {
+                return WeatherForecast(days: openMeteo, source: .openMeteo)
+            }
+        } catch {
+            // ここでは握りつぶさず、控えを試したうえで投げ直します。
+            return try await fallback(
+                latitude: latitude, longitude: longitude,
+                elevation: elevation, firstFailure: error
+            )
+        }
+        return try await fallback(
+            latitude: latitude, longitude: longitude,
+            elevation: elevation, firstFailure: Failure.badResponse
+        )
+    }
+
+    private static func fallback(
+        latitude: Double,
+        longitude: Double,
+        elevation: Double,
+        firstFailure: Error
+    ) async throws -> WeatherForecast {
+        do {
+            let days = try await MetNoWeather.forecast(
+                latitude: latitude, longitude: longitude, elevation: elevation
+            )
+            guard !days.isEmpty else { throw firstFailure }
+            return WeatherForecast(days: days, source: .metNo)
+        } catch {
+            // 控えも駄目なら、最初の失敗を伝えます。
+            throw firstFailure
+        }
+    }
+
+    private static func openMeteoForecast(
+        latitude: Double,
+        longitude: Double,
+        days: Int
     ) async throws -> [DailyWeather] {
         var components = URLComponents(string: "https://api.open-meteo.com/v1/forecast")!
         components.queryItems = [
@@ -184,13 +290,7 @@ enum WeatherService {
         } catch let error as URLError {
             // 圏外・タイムアウト・名前解決の失敗は、どれも「届かなかった」として扱います。
             // 利用者にとっては同じことで、やることも同じ（電波を変えるか、別の手段で調べる）です。
-            switch error.code {
-            case .timedOut, .notConnectedToInternet, .networkConnectionLost,
-                 .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
-                throw Failure.unreachable
-            default:
-                throw Failure.network(error)
-            }
+            throw failure(for: error)
         } catch {
             throw Failure.network(error)
         }
@@ -219,7 +319,8 @@ private struct OpenMeteoResponse: Decodable {
                 code: WeatherCode(rawCode: daily.weatherCode[index]),
                 temperatureMax: daily.temperatureMax[index] ?? 0,
                 temperatureMin: daily.temperatureMin[index] ?? 0,
-                precipitationProbability: daily.precipitationProbability[index] ?? 0,
+                precipitationProbability: daily.precipitationProbability[index],
+                precipitationAmount: nil,
                 windSpeed: daily.windSpeed[index] ?? 0
             )
         }
