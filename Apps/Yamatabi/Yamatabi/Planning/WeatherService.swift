@@ -122,14 +122,35 @@ enum WeatherCode: Int, Equatable {
 /// 予報が出ているのはおよそ2週間先までで、それより先の登山日では結果が空になります。
 enum WeatherService {
 
+    /// 待つ上限。
+    ///
+    /// 既定の60秒だと、サーバーに届かないときに1分間「取得中…」のまま固まります。
+    /// 山で電波が弱いときほど起きやすく、待たされるより早く諦めて代わりの手段を
+    /// 示すほうが役に立ちます。
+    static let timeout: TimeInterval = 10
+
     enum Failure: LocalizedError {
+        /// サーバーに届かなかった（圏外・タイムアウト・サーバー障害）。
+        case unreachable
         case network(Error)
         case badResponse
 
         var errorDescription: String? {
             switch self {
-            case .network: "天気予報を取得できませんでした。通信状況をご確認ください。"
-            case .badResponse: "天気予報の形式が想定と違いました。"
+            case .unreachable:
+                "天気予報サーバーに届きませんでした。"
+            case .network:
+                "天気予報を取得できませんでした。通信状況をご確認ください。"
+            case .badResponse:
+                "天気予報の形式が想定と違いました。"
+            }
+        }
+
+        /// もう一度試す価値があるか。形式の違いは試しても直りません。
+        var isWorthRetrying: Bool {
+            switch self {
+            case .unreachable, .network: true
+            case .badResponse: false
             }
         }
     }
@@ -156,9 +177,20 @@ enum WeatherService {
             .init(name: "forecast_days", value: String(days))
         ]
 
+        let request = URLRequest(url: components.url!, timeoutInterval: timeout)
         let data: Data
         do {
-            (data, _) = try await URLSession.shared.data(from: components.url!)
+            (data, _) = try await URLSession.shared.data(for: request)
+        } catch let error as URLError {
+            // 圏外・タイムアウト・名前解決の失敗は、どれも「届かなかった」として扱います。
+            // 利用者にとっては同じことで、やることも同じ（電波を変えるか、別の手段で調べる）です。
+            switch error.code {
+            case .timedOut, .notConnectedToInternet, .networkConnectionLost,
+                 .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
+                throw Failure.unreachable
+            default:
+                throw Failure.network(error)
+            }
         } catch {
             throw Failure.network(error)
         }

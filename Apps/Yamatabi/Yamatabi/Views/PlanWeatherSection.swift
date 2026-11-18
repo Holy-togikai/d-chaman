@@ -1,11 +1,17 @@
+import CoreLocation
 import SwiftUI
 
 /// 山頂の天気を表示するセクション。
 struct PlanWeatherSection: View {
     let forecast: [DailyWeather]
     let date: Date
+    /// 山頂の座標。取得できなかったときに、代わりの天気サイトを開くのに使います。
+    let summit: CLLocationCoordinate2D
     let isLoading: Bool
-    let errorMessage: String?
+    let failure: WeatherService.Failure?
+    let onRetry: () -> Void
+
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         Section {
@@ -14,8 +20,8 @@ struct PlanWeatherSection: View {
                     ProgressView()
                     Text("取得中…").foregroundStyle(.secondary)
                 }
-            } else if let errorMessage {
-                Text(errorMessage).font(.callout).foregroundStyle(.secondary)
+            } else if let failure {
+                failureContent(failure)
             } else if let day = dayForDate {
                 summary(day)
                 if let warning = day.warning {
@@ -24,6 +30,8 @@ struct PlanWeatherSection: View {
                         .foregroundStyle(.orange)
                 }
             } else {
+                // 予報の期間外。これは不具合ではないので、代わりの手段も出しません。
+                // どこで調べても、まだ予報は出ていないためです。
                 Text("この日の予報はまだ出ていません。予報が出るのは約2週間先までです。")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -34,6 +42,46 @@ struct PlanWeatherSection: View {
             Text("気象データ: Open-Meteo.com（CC BY 4.0）。山頂の標高を加味した予報です。")
         }
     }
+
+    // MARK: - 取得できなかったとき
+
+    @ViewBuilder
+    private func failureContent(_ failure: WeatherService.Failure) -> some View {
+        Label(
+            failure.errorDescription ?? "天気予報を取得できませんでした。",
+            systemImage: "cloud.slash"
+        )
+        .font(.callout)
+        .foregroundStyle(.secondary)
+
+        if failure.isWorthRetrying {
+            Button(action: onRetry) {
+                Label("もう一度試す", systemImage: "arrow.clockwise")
+            }
+        }
+
+        // 山に行くかどうかは天気で決まります。取れなかったで終わらせず、
+        // ほかで調べられる場所を出します。
+        ForEach(WeatherLink.allCases) { link in
+            if let url = link.url(for: summit) {
+                Button {
+                    openURL(url)
+                } label: {
+                    LabeledContent {
+                        Image(systemName: "arrow.up.right.square")
+                            .foregroundStyle(.secondary)
+                    } label: {
+                        Label(link.title, systemImage: link.symbolName)
+                        Text(link.detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - 取得できたとき
 
     private var dayForDate: DailyWeather? {
         let calendar = Calendar.current

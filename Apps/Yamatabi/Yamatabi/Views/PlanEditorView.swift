@@ -12,7 +12,7 @@ struct PlanEditorView: View {
     @ObservedObject private var settings = UserSettings.shared
 
     @State private var weather: [DailyWeather] = []
-    @State private var weatherError: String?
+    @State private var weatherFailure: WeatherService.Failure?
     @State private var isLoadingWeather = false
 
     @State private var isPickingParking = false
@@ -48,8 +48,10 @@ struct PlanEditorView: View {
             PlanWeatherSection(
                 forecast: weather,
                 date: plan.date,
+                summit: plan.summitCoordinate,
                 isLoading: isLoadingWeather,
-                errorMessage: weatherError
+                failure: weatherFailure,
+                onRetry: { Task { await loadWeather() } }
             )
             PlanExtrasSection(
                 plan: plan,
@@ -293,7 +295,7 @@ struct PlanEditorView: View {
 
     private func loadWeather() async {
         isLoadingWeather = true
-        weatherError = nil
+        weatherFailure = nil
         defer { isLoadingWeather = false }
 
         do {
@@ -302,7 +304,7 @@ struct PlanEditorView: View {
                 longitude: plan.summitLongitude
             )
         } catch {
-            weatherError = error.localizedDescription
+            weatherFailure = error as? WeatherService.Failure ?? .network(error)
         }
     }
 }
