@@ -22,7 +22,7 @@ struct RootView: View {
                 .tabItem { Label("ホーム", systemImage: "house") }
                 .tag(Tab.home)
 
-            MapTabView(tracker: tracker)
+            MapTabView(tracker: tracker, onPlanCreated: { tab = .home })
                 .tabItem { Label("地図", systemImage: "map") }
                 .tag(Tab.map)
 

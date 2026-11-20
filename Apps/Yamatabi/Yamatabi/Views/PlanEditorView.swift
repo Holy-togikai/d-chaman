@@ -25,6 +25,7 @@ struct PlanEditorView: View {
     @State private var isEditingToll = false
     @State private var isShowingPostHike = false
     @State private var isShowingMeals = false
+    @State private var isChangingMountain = false
 
     /// 日付ピッカーを畳むための札。日付が変わるたびに新しくします。
     @State private var datePickerToken = UUID()
@@ -83,6 +84,12 @@ struct PlanEditorView: View {
         } message: {
             Text("ドラぷら等で調べた金額を円単位で入力すると、概算を上書きできます。")
         }
+        .sheet(isPresented: $isChangingMountain) {
+            MountainFinderView(mountains: MountainData.all) { mountain in
+                // 登山口やコースは山ごとに違うので、change(to:) の中で消える。
+                plan.change(to: mountain)
+            }
+        }
         .sheet(isPresented: $isShowingMeals) {
             MealPlanView(plan: plan)
         }
@@ -115,6 +122,15 @@ struct PlanEditorView: View {
 
     private var summarySection: some View {
         Section {
+            Button {
+                isChangingMountain = true
+            } label: {
+                LabeledContent {
+                    Text("変える")
+                } label: {
+                    Label(plan.mountainName, systemImage: "mountain.2.fill")
+                }
+            }
             LabeledContent("山頂の標高", value: "\(Int(plan.summitElevation)) m")
             if let gain = plan.elevationGain {
                 LabeledContent("登山口からの標高差", value: "\(Int(gain)) m")
@@ -243,24 +259,10 @@ struct PlanEditorView: View {
     // MARK: - 処理
 
     private func applyTrailhead(name: String, coordinate: CLLocationCoordinate2D) {
-        plan.trailheadName = name
-        plan.trailheadLatitude = coordinate.latitude
-        plan.trailheadLongitude = coordinate.longitude
-
+        // 登山口が変われば車の時間も変わる。計算し直すまで古い値で時刻を出さない。
+        plan.driveTimeSeconds = nil
         Task {
-            // 登山口の標高を取って、標高差からコースタイムの初期値を入れる。
-            if let elevation = try? await ElevationService.elevation(
-                latitude: coordinate.latitude,
-                longitude: coordinate.longitude
-            ) {
-                plan.trailheadElevation = elevation
-                // 手で入れた値や調べた値は尊重し、概算のときだけ入れ替える。
-                if plan.courseTimeSource == .estimated || plan.courseTimeSeconds == 0 {
-                    let gain = max(0, plan.summitElevation - elevation)
-                    plan.courseTimeSeconds = HikePlanner.estimatedCourseTime(elevationGain: gain)
-                    plan.courseTimeSource = .estimated
-                }
-            }
+            await plan.applyTrailhead(name: name, coordinate: coordinate)
             await calculateRoute()
         }
     }
@@ -275,19 +277,14 @@ struct PlanEditorView: View {
     }
 
     private func calculateRoute() async {
-        guard let origin = plan.originCoordinate,
-              let trailhead = plan.trailheadCoordinate else { return }
+        guard plan.originCoordinate != nil, plan.trailheadCoordinate != nil else { return }
 
         isCalculatingRoute = true
         routeError = nil
         defer { isCalculatingRoute = false }
 
         do {
-            let estimate = try await RouteService.drive(from: origin, to: trailhead)
-            plan.driveTimeSeconds = estimate.travelTime
-            plan.driveDistance = estimate.distance
-            plan.estimatedHighwayDistance = estimate.estimatedHighwayDistance
-            plan.highwayNamesText = estimate.highwayNames.joined(separator: "・")
+            try await plan.refreshDrive()
         } catch {
             routeError = error.localizedDescription
         }
