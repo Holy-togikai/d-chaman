@@ -9,16 +9,13 @@ struct PlanListView: View {
 
     @State private var isChoosingMountain = false
     @State private var isShowingSettings = false
-    @State private var newPlan: HikePlan?
-
-    private let mountains = MountainData.all
 
     var body: some View {
         NavigationStack {
             List {
                 ForEach(plans) { plan in
                     NavigationLink {
-                        PlanEditorView(plan: plan)
+                        PlanDetailView(plan: plan)
                     } label: {
                         row(plan)
                     }
@@ -58,13 +55,10 @@ struct PlanListView: View {
             .sheet(isPresented: $isShowingSettings) {
                 SettingsView()
             }
-            .sheet(isPresented: $isChoosingMountain) {
-                MountainFinderView(mountains: mountains) { mountain in
-                    create(for: mountain)
-                }
-            }
-            .navigationDestination(item: $newPlan) { plan in
-                PlanEditorView(plan: plan)
+            // 作り方はホームと同じ1ページずつの流れにそろえる。入口によって
+            // 作り方が違うと、どちらかに慣れた人が戸惑うためです。
+            .fullScreenCover(isPresented: $isChoosingMountain) {
+                PlanWizardView()
             }
         }
     }
@@ -114,15 +108,6 @@ struct PlanListView: View {
             }
         }
         .padding(.vertical, 3)
-    }
-
-    private func create(for mountain: Mountain) {
-        // 既定は1週間後。天気予報が出ている範囲で、準備の時間も取れる距離感。
-        let date = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
-        let plan = HikePlan(mountain: mountain, date: date)
-        modelContext.insert(plan)
-        try? modelContext.save()
-        newPlan = plan
     }
 
     private func delete(at offsets: IndexSet) {

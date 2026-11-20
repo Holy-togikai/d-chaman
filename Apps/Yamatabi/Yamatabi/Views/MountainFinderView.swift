@@ -5,6 +5,7 @@ import SwiftUI
 enum MountainFinderMode: String, CaseIterable, Identifiable {
     case map
     case hyakumeizan
+    case prefecture
     case keyword
     case history
 
@@ -14,6 +15,7 @@ enum MountainFinderMode: String, CaseIterable, Identifiable {
         switch self {
         case .map: "地図"
         case .hyakumeizan: "百名山"
+        case .prefecture: "都道府県"
         case .keyword: "検索"
         case .history: "履歴"
         }
@@ -23,35 +25,27 @@ enum MountainFinderMode: String, CaseIterable, Identifiable {
         switch self {
         case .map: "map"
         case .hyakumeizan: "star"
+        case .prefecture: "list.bullet"
         case .keyword: "magnifyingglass"
         case .history: "clock.arrow.circlepath"
         }
     }
 }
 
-/// 山を選ぶ画面。地図・百名山・キーワード・履歴の4つの入口を持ちます。
+/// 山を選ぶ画面。シートとして開くときに使います。
 ///
 /// 記録の開始と登山計画の作成の両方から使われるため、選ばれた山を返すだけの役割に留めています。
 struct MountainFinderView: View {
     let mountains: [Mountain]
     let onSelect: (Mountain) -> Void
 
-    @State private var mode: MountainFinderMode = .keyword
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                Picker("探し方", selection: $mode) {
-                    ForEach(MountainFinderMode.allCases) { mode in
-                        Label(mode.label, systemImage: mode.symbolName).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-
-                content
+            MountainFinderContent(mountains: mountains) { mountain in
+                onSelect(mountain)
+                dismiss()
             }
             .navigationTitle("山を探す")
             .navigationBarTitleDisplayMode(.inline)
@@ -62,24 +56,47 @@ struct MountainFinderView: View {
             }
         }
     }
+}
+
+/// 山の探し方の切り替えと、その中身。
+///
+/// 計画を1ページずつ作る流れでは、シートを重ねずにこの画面をそのまま1ページ目に置きます。
+/// シートの中にシートを開くと、どこにいるのかが分かりにくくなるためです。
+struct MountainFinderContent: View {
+    let mountains: [Mountain]
+    let onSelect: (Mountain) -> Void
+
+    @State private var mode: MountainFinderMode = .keyword
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("探し方", selection: $mode) {
+                ForEach(MountainFinderMode.allCases) { mode in
+                    Text(mode.label).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+
+            content
+        }
+    }
 
     @ViewBuilder
     private var content: some View {
         switch mode {
         case .map:
-            MountainMapPicker(mountains: mountains, onSelect: select)
+            MountainMapPicker(mountains: mountains, onSelect: onSelect)
         case .hyakumeizan:
-            HyakumeizanList(onSelect: select)
+            HyakumeizanList(onSelect: onSelect)
+        case .prefecture:
+            MountainPrefectureList(mountains: mountains, onSelect: onSelect)
         case .keyword:
-            MountainKeywordList(mountains: mountains, onSelect: select)
+            MountainKeywordList(mountains: mountains, onSelect: onSelect)
         case .history:
-            MountainHistoryList(onSelect: select)
+            MountainHistoryList(onSelect: onSelect)
         }
-    }
-
-    private func select(_ mountain: Mountain) {
-        onSelect(mountain)
-        dismiss()
     }
 }
 
