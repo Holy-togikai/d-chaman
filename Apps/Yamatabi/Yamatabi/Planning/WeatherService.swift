@@ -146,7 +146,9 @@ enum WeatherSource: Equatable {
     }
 
     /// 控えの提供元から取ったか。画面でその旨を添えるために使います。
-    var isFallback: Bool { self == .metNo }
+    ///
+    /// 主は met.no、控えは Open-Meteo（決定記録 0003）。
+    var isFallback: Bool { self == .openMeteo }
 }
 
 /// 取得できた予報と、その出どころ。
@@ -154,14 +156,16 @@ struct WeatherForecast: Equatable {
     let days: [DailyWeather]
     let source: WeatherSource
 
-    static let empty = WeatherForecast(days: [], source: .openMeteo)
+    static let empty = WeatherForecast(days: [], source: .metNo)
 }
 
 /// 山頂の天気予報を取得する。
 ///
-/// 提供元: Open-Meteo（https://open-meteo.com）。APIキー不要で、
-/// 緯度経度を指定すると標高を加味した予報が返ります。山の上の気温を知るうえで重要です。
-/// データは CC BY 4.0。画面に出典を表示しています。
+/// 主の提供元は met.no（MET Norway）、控えは Open-Meteo です（決定記録 0003）。
+/// どちらも APIキー不要で、標高を加味した予報が返ります。山の上の気温を知るうえで重要です。
+///
+/// met.no を主にしたのは、出典を表示すれば**商用でも無料**で使えるためです。
+/// Open-Meteo の無料版は商用ではない利用に限られ、将来の買い切り有料化と両立しません。
 ///
 /// 予報が出ているのはおよそ2週間先までで、それより先の登山日では結果が空になります。
 enum WeatherService {
@@ -172,6 +176,13 @@ enum WeatherService {
     /// 山で電波が弱いときほど起きやすく、待たされるより早く諦めて代わりの手段を
     /// 示すほうが役に立ちます。
     static let timeout: TimeInterval = 10
+
+    /// met.no が駄目なときに Open-Meteo を控えとして使うか。
+    ///
+    /// **買い切りの有料版に切り替える前に、false にするか Open-Meteo の商用プランを契約すること。**
+    /// Open-Meteo の無料版は商用ではない利用に限られるためです（決定記録 0003）。
+    /// 無料で公開している間は、予報が取れない時間を減らすために控えとして残しています。
+    static let usesOpenMeteoFallback = true
 
     enum Failure: LocalizedError {
         /// サーバーに届かなかった（圏外・タイムアウト・サーバー障害）。
@@ -210,7 +221,7 @@ enum WeatherService {
         }
     }
 
-    /// 予報を取る。Open-Meteo が駄目なら met.no を試す。
+    /// 予報を取る。met.no が駄目なら、控えの Open-Meteo を試す。
     ///
     /// 提供元が1つだと、そこが落ちている間は何も出せません。山に行くかどうかは
     /// 天気で決まるので、控えを持ちます。
@@ -222,39 +233,25 @@ enum WeatherService {
         elevation: Double,
         days: Int = 14
     ) async throws -> WeatherForecast {
+        let firstFailure: Error
         do {
-            let openMeteo = try await openMeteoForecast(
-                latitude: latitude, longitude: longitude, days: days
-            )
-            // 空の配列が返ることもあるので、中身がないなら控えに回します。
-            if !openMeteo.isEmpty {
-                return WeatherForecast(days: openMeteo, source: .openMeteo)
-            }
-        } catch {
-            // ここでは握りつぶさず、控えを試したうえで投げ直します。
-            return try await fallback(
-                latitude: latitude, longitude: longitude,
-                elevation: elevation, firstFailure: error
-            )
-        }
-        return try await fallback(
-            latitude: latitude, longitude: longitude,
-            elevation: elevation, firstFailure: Failure.badResponse
-        )
-    }
-
-    private static func fallback(
-        latitude: Double,
-        longitude: Double,
-        elevation: Double,
-        firstFailure: Error
-    ) async throws -> WeatherForecast {
-        do {
-            let days = try await MetNoWeather.forecast(
+            let metNo = try await MetNoWeather.forecast(
                 latitude: latitude, longitude: longitude, elevation: elevation
             )
+            // 空の配列が返ることもあるので、中身がないなら控えに回します。
+            if !metNo.isEmpty {
+                return WeatherForecast(days: metNo, source: .metNo)
+            }
+            firstFailure = Failure.badResponse
+        } catch {
+            firstFailure = error
+        }
+
+        guard usesOpenMeteoFallback else { throw firstFailure }
+        do {
+            let days = try await openMeteoForecast(latitude: latitude, longitude: longitude, days: days)
             guard !days.isEmpty else { throw firstFailure }
-            return WeatherForecast(days: days, source: .metNo)
+            return WeatherForecast(days: days, source: .openMeteo)
         } catch {
             // 控えも駄目なら、最初の失敗を伝えます。
             throw firstFailure

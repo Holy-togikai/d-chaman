@@ -2,14 +2,15 @@ import Foundation
 
 /// ノルウェー気象研究所（MET Norway）の予報。
 ///
-/// Open-Meteo が落ちているときの控えです。キー不要で、標高を指定でき、
-/// 10日先まで返ります。日本の山でも使えます。
+/// このアプリの**主の提供元**です（決定記録 0003）。キー不要で、標高を指定でき、
+/// 10日先まで返ります。日本の山でも使えます。出典を表示すれば商用でも無料です。
 ///
 /// ## 利用の条件
 ///
 /// - **出典の表示が必要です。** 画面に「Meteorologisk institutt (MET Norway)」を出しています
 /// - **User-Agent でアプリを名乗る必要があります。** 名乗らないと 403 が返ります
-/// - 同じ地点を何度も取りに行かないこと。このアプリは日付か山が変わったときだけ取得します
+/// - 同じ地点を何度も取りに行かないこと。返ってきた「Expires」の時刻までは、
+///   同じ地点の予報を取りに行かず、手元のものを使います（`cache`）
 ///
 /// ## Open-Meteo との違い
 ///
@@ -25,12 +26,24 @@ enum MetNoWeather {
     /// 公開前に、問い合わせ用の窓口を決めて足してください。
     static let userAgent = "Yamatabi/0.1 (iOS hiking app)"
 
+    /// 取った予報を、met.no が示す期限まで覚えておく。
+    ///
+    /// 主の提供元にしたことで、計画画面を開くたびに取りに行くことになります。
+    /// 規約は「Expires までは取り直さない」ことを求めているので、それに従います。
+    private static let cache = MetNoCache()
+
     static func forecast(
         latitude: Double,
         longitude: Double,
         elevation: Double,
         calendar: Calendar = .current
     ) async throws -> [DailyWeather] {
+        // 規約が座標を小数4桁までに丸めるよう求めている。丸めると同じ地点として覚えられる。
+        let key = MetNoCache.key(latitude: latitude, longitude: longitude, elevation: elevation)
+        if let cached = await cache.days(for: key, now: Date()) {
+            return cached
+        }
+
         var components = URLComponents(
             string: "https://api.met.no/weatherapi/locationforecast/2.0/compact"
         )!
@@ -45,8 +58,9 @@ enum MetNoWeather {
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
 
         let data: Data
+        let response: URLResponse
         do {
-            (data, _) = try await URLSession.shared.data(for: request)
+            (data, response) = try await URLSession.shared.data(for: request)
         } catch let error as URLError {
             throw WeatherService.failure(for: error)
         } catch {
@@ -58,10 +72,46 @@ enum MetNoWeather {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
 
-        guard let response = try? decoder.decode(MetNoResponse.self, from: data) else {
+        guard let decoded = try? decoder.decode(MetNoResponse.self, from: data) else {
             throw WeatherService.Failure.badResponse
         }
-        return response.toDailyWeather(calendar: calendar)
+        let days = decoded.toDailyWeather(calendar: calendar)
+        let expires = MetNoCache.expires(from: response) ?? Date().addingTimeInterval(30 * 60)
+        await cache.store(days, for: key, until: expires)
+        return days
+    }
+}
+
+// MARK: - 取った予報の覚え書き
+
+/// met.no の予報を、返ってきた期限まで覚えておく係。
+actor MetNoCache {
+    private var entries: [String: (days: [DailyWeather], expires: Date)] = [:]
+
+    func days(for key: String, now: Date) -> [DailyWeather]? {
+        guard let entry = entries[key], now < entry.expires else { return nil }
+        return entry.days
+    }
+
+    func store(_ days: [DailyWeather], for key: String, until expires: Date) {
+        entries[key] = (days, expires)
+    }
+
+    /// 同じ地点とみなす鍵。規約に合わせて小数4桁に丸める。
+    static func key(latitude: Double, longitude: Double, elevation: Double) -> String {
+        String(format: "%.4f,%.4f,%d", latitude, longitude, Int(elevation.rounded()))
+    }
+
+    /// 応答の「Expires」見出しを読む。読めなければ nil。
+    static func expires(from response: URLResponse) -> Date? {
+        guard let value = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Expires") else {
+            return nil
+        }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        return formatter.date(from: value)
     }
 }
 
