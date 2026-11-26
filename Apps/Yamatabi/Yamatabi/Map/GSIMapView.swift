@@ -26,6 +26,10 @@ struct GSIMapView: UIViewRepresentable {
     var onSelect: ((MountainAnnotation) -> Void)?
     /// 地図を長押ししたときに呼ばれる。登山口を自分で指定するのに使います。
     var onLongPress: ((CLLocationCoordinate2D) -> Void)?
+    /// 今見えている範囲を、外から読み取るための窓口。地図を保存する範囲に使います。
+    var viewport: MapViewport?
+    /// この範囲が収まるようにカメラを合わせる。保存した地図を見に行くのに使います。
+    var focusedBox: GeoBox?
 
     /// 出典表示を持ち上げる高さ。
     ///
@@ -60,6 +64,7 @@ struct GSIMapView: UIViewRepresentable {
         )
         mapView.addGestureRecognizer(longPress)
         context.coordinator.mapView = mapView
+        viewport?.mapView = mapView
 
         return mapView
     }
@@ -68,6 +73,10 @@ struct GSIMapView: UIViewRepresentable {
         context.coordinator.onSelect = onSelect
         context.coordinator.onLongPress = onLongPress
         updateAttribution(on: mapView)
+
+        if let focusedBox, context.coordinator.focusedBox != focusedBox {
+            context.coordinator.focus(on: focusedBox, in: mapView)
+        }
 
         if mapView.showsUserLocation != showsUserLocation {
             mapView.showsUserLocation = showsUserLocation
@@ -86,25 +95,7 @@ struct GSIMapView: UIViewRepresentable {
                 )
             }
         }
-        // 記録中は、軌跡の先端を画面の中心に保つ。
-        if followsTrack, let tip = track.last {
-            if context.coordinator.hasZoomedToTrack {
-                mapView.setCenter(tip.coordinate, animated: true)
-            } else {
-                // 最初の1回だけ、日本全体の表示から足元が見える縮尺まで寄せる。
-                // 以降は縮尺を触らず、利用者が拡大・縮小した状態を尊重する。
-                mapView.setRegion(
-                    MKCoordinateRegion(
-                        center: tip.coordinate,
-                        span: MKCoordinateSpan(latitudeDelta: 0.006, longitudeDelta: 0.006)
-                    ),
-                    animated: true
-                )
-                context.coordinator.hasZoomedToTrack = true
-            }
-        } else if !followsTrack {
-            context.coordinator.hasZoomedToTrack = false
-        }
+        context.coordinator.follow(track: followsTrack ? track.last : nil, on: mapView)
 
         // タイル種別が変わったときだけ、オーバーレイを張り替える。
         if context.coordinator.currentTile != tile {
@@ -134,57 +125,6 @@ struct GSIMapView: UIViewRepresentable {
         Coordinator()
     }
 
-    /// 「地理院タイル」の出典を地図の左下に重ねる。タップすると一覧ページを開く。
-    private func addAttribution(to mapView: MKMapView) {
-        var configuration = UIButton.Configuration.plain()
-        configuration.title = "地理院タイル"
-        configuration.baseForegroundColor = .secondaryLabel
-        configuration.background.backgroundColor = .systemBackground.withAlphaComponent(0.75)
-        configuration.background.cornerRadius = 4
-        configuration.contentInsets = NSDirectionalEdgeInsets(
-            top: 2, leading: 5, bottom: 2, trailing: 5
-        )
-        configuration.titleTextAttributesTransformer = .init { attributes in
-            var updated = attributes
-            updated.font = .systemFont(ofSize: 10)
-            return updated
-        }
-        let button = UIButton(configuration: configuration)
-        button.addAction(
-            UIAction { _ in
-                guard let url = URL(string: "https://maps.gsi.go.jp/development/ichiran.html") else {
-                    return
-                }
-                UIApplication.shared.open(url)
-            },
-            for: .touchUpInside
-        )
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.tag = Self.attributionTag
-        mapView.addSubview(button)
-        let bottom = button.bottomAnchor.constraint(
-            equalTo: mapView.safeAreaLayoutGuide.bottomAnchor,
-            constant: -8
-        )
-        bottom.identifier = Self.attributionBottomID
-        NSLayoutConstraint.activate([
-            button.leadingAnchor.constraint(equalTo: mapView.safeAreaLayoutGuide.leadingAnchor,
-                                            constant: 8),
-            bottom
-        ])
-    }
-
-    private static let attributionTag = 7301
-    private static let attributionBottomID = "attribution.bottom"
-
-    /// 下部のパネルぶんだけ出典を持ち上げ直す。
-    private func updateAttribution(on mapView: MKMapView) {
-        guard let constraint = mapView.constraints.first(
-            where: { $0.identifier == Self.attributionBottomID }
-        ) else { return }
-        constraint.constant = -8 - attributionBottomInset
-    }
-
     /// MKMapView からの通知を受け取る係。
     final class Coordinator: NSObject, MKMapViewDelegate {
         private(set) var currentTile: GSITile?
@@ -193,6 +133,49 @@ struct GSIMapView: UIViewRepresentable {
         var focusedID: String?
         var onSelect: ((MountainAnnotation) -> Void)?
         var onLongPress: ((CLLocationCoordinate2D) -> Void)?
+        var focusedBox: GeoBox?
+
+        /// 記録中は、軌跡の先端を画面の中心に保つ。記録していないときは nil を渡す。
+        func follow(track tip: TrackPoint?, on mapView: MKMapView) {
+            guard let tip else {
+                hasZoomedToTrack = false
+                return
+            }
+            if hasZoomedToTrack {
+                mapView.setCenter(tip.coordinate, animated: true)
+            } else {
+                // 最初の1回だけ、日本全体の表示から足元が見える縮尺まで寄せる。
+                // 以降は縮尺を触らず、利用者が拡大・縮小した状態を尊重する。
+                mapView.setRegion(
+                    MKCoordinateRegion(
+                        center: tip.coordinate,
+                        span: MKCoordinateSpan(latitudeDelta: 0.006, longitudeDelta: 0.006)
+                    ),
+                    animated: true
+                )
+                hasZoomedToTrack = true
+            }
+        }
+
+        /// 保存した範囲が収まるようにカメラを合わせる。
+        func focus(on box: GeoBox, in mapView: MKMapView) {
+            let topLeft = MKMapPoint(CLLocationCoordinate2D(
+                latitude: box.maxLatitude, longitude: box.minLongitude
+            ))
+            let bottomRight = MKMapPoint(CLLocationCoordinate2D(
+                latitude: box.minLatitude, longitude: box.maxLongitude
+            ))
+            let rect = MKMapRect(
+                x: topLeft.x, y: topLeft.y,
+                width: bottomRight.x - topLeft.x, height: bottomRight.y - topLeft.y
+            )
+            mapView.setVisibleMapRect(
+                rect,
+                edgePadding: UIEdgeInsets(top: 80, left: 20, bottom: 160, right: 20),
+                animated: true
+            )
+            focusedBox = box
+        }
 
     /// 出典表示を持ち上げる高さ。
     ///
@@ -328,6 +311,25 @@ struct GSIMapView: UIViewRepresentable {
                 animated: true
             )
         }
+    }
+}
+
+/// 地図で今見えている範囲を読み取る窓口。
+///
+/// 範囲が変わるたびに知らせてもらう作りにしたところ、山を選んでカメラが自動で寄ったときに
+/// 知らせが届かず、日本全体の範囲のまま保存しようとした（見積もり2,500万枚）。
+/// 必要になった瞬間に地図そのものから読むほうが、取り違えが起きない。
+final class MapViewport {
+    weak var mapView: MKMapView?
+
+    var box: GeoBox? {
+        guard let region = mapView?.region else { return nil }
+        return GeoBox(
+            minLatitude: region.center.latitude - region.span.latitudeDelta / 2,
+            maxLatitude: region.center.latitude + region.span.latitudeDelta / 2,
+            minLongitude: region.center.longitude - region.span.longitudeDelta / 2,
+            maxLongitude: region.center.longitude + region.span.longitudeDelta / 2
+        )
     }
 }
 
