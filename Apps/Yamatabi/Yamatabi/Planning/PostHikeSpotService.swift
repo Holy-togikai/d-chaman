@@ -45,7 +45,7 @@ struct PostHikeSpot: Identifiable, Equatable {
     let coordinate: CLLocationCoordinate2D
     /// 登山口からの直線距離（メートル）。
     let distanceFromTrailhead: CLLocationDistance
-    let phoneNumber: String?
+    /// 公式サイト。電話番号は持たない。アプリで見る人はウェブで確かめたいと考え、出さないことにしたため。
     let url: URL?
     let mapItem: MKMapItem
 
@@ -62,7 +62,7 @@ struct PostHikeSpot: Identifiable, Equatable {
 ///
 /// ⚠️ **営業時間・料金・定休日は取得できません。** Apple の地図検索はこれらを返さず、
 /// 日本の入浴施設や食事処について、これらが揃った公開データもありません。
-/// 並び順の根拠は登山口からの近さだけです。実際に行く前に、電話か公式サイトで確認してください。
+/// 並び順の根拠は登山口からの近さだけです。実際に行く前に、公式サイトで確認してください。
 enum PostHikeSpotService {
 
     /// 探す範囲（メートル）。車で寄る前提なので広めに取ります。
@@ -125,7 +125,6 @@ enum PostHikeSpotService {
                 category: category,
                 coordinate: coordinate,
                 distanceFromTrailhead: distance,
-                phoneNumber: item.phoneNumber,
                 url: item.url,
                 mapItem: item
             )

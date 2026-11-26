@@ -72,7 +72,7 @@ struct PostHikeSpotsView: View {
                 // 記号がそのまま画面に出てしまう（実際に起きた）。日本語の文ではよく当たる。
                 Text("登山口から近い順に並べています。")
                     + Text("営業時間・料金・定休日は地図サービスから取得できません。").bold()
-                    + Text("行く前に電話か公式サイトでご確認ください。")
+                    + Text("行く前に公式サイトでご確認ください。")
             }
         }
         .overlay {
@@ -105,13 +105,6 @@ struct PostHikeSpotsView: View {
                     spot.mapItem.openInMaps()
                 } label: {
                     Label("地図で開く", systemImage: "map")
-                }
-
-                if let phone = spot.phoneNumber,
-                   let url = URL(string: "tel://" + phone.filter({ $0.isNumber })) {
-                    Link(destination: url) {
-                        Label("電話", systemImage: "phone")
-                    }
                 }
 
                 if let url = spot.url {
