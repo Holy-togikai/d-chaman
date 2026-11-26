@@ -22,7 +22,8 @@ struct RootView: View {
     var body: some View {
         TabView(selection: $tab) {
             HomeView(tracker: tracker, onOpenMap: { tab = .map })
-                .tabItem { Label("ホーム", systemImage: "house") }
+                // 予定を立てて確かめる画面なので「計画」。家の絵だと何をする所か伝わらない。
+                .tabItem { Label("計画", systemImage: "calendar") }
                 .tag(Tab.home)
 
             MapTabView(tracker: tracker, onPlanCreated: { tab = .home }, focusedBox: mapFocus)
