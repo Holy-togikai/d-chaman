@@ -19,9 +19,10 @@ struct HomeView: View {
     @State private var mealPlan: HikePlan?
     @State private var isCreatingPlan = false
     @State private var isShowingPlans = false
-    @State private var isShowingRecords = false
+    @State private var postHikePlan: HikePlan?
     @State private var isShowingSettings = false
-    @State private var isExplainingMeal = false
+    /// 予定が無いのに山ごはん・寄り道を押したときに、先に予定を立てるよう案内する。
+    @State private var explainingExtra: String?
     /// 1分ごとに「あと何日」と、終わった予定の入れ替えを見直すための現在時刻。
     @State private var now = Date()
 
@@ -79,13 +80,16 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $isCreatingPlan) { PlanWizardView() }
         .sheet(item: $mealPlan) { MealPlanView(plan: $0) }
         .sheet(isPresented: $isShowingPlans) { PlanListView() }
-        .sheet(isPresented: $isShowingRecords) { RecordListView() }
+        .sheet(item: $postHikePlan) { PostHikeSpotsView(plan: $0) }
         .sheet(isPresented: $isShowingSettings) { SettingsView() }
-        .alert("山ごはん", isPresented: $isExplainingMeal) {
+        .alert(
+            explainingExtra ?? "",
+            isPresented: Binding(get: { explainingExtra != nil }, set: { if !$0 { explainingExtra = nil } })
+        ) {
             Button("山の予定を立てる") { isCreatingPlan = true }
             Button("閉じる", role: .cancel) {}
         } message: {
-            Text("山ごはんは予定ごとに選びます。先に山の予定を立ててください。")
+            Text("\(explainingExtra ?? "")は予定ごとに決めます。先に山の予定を立ててください。")
         }
     }
 
@@ -231,18 +235,24 @@ struct HomeView: View {
 
     // MARK: - サブ要素
 
-    /// 過去の記録と山ごはん。あると楽しいが主役ではないので、下に小さく置く。
+    /// 山ごはんと寄り道。あると楽しいが主役ではないので、下に小さく置く。
+    ///
+    /// 以前は「過去の記録」を置いていたが、記録はタブから開けるので外した。
     private var subTiles: some View {
         HStack(spacing: 12) {
-            subTile("過去の記録", systemImage: "figure.hiking") {
-                isShowingRecords = true
-            }
+            // どちらも予定ごとに持つので、いちばん近い予定のものを開く。
             subTile("山ごはん", systemImage: "fork.knife") {
-                // 山ごはんは予定ごとに持つので、いちばん近い予定のものを開く。
                 if let plan = upcoming.first {
                     mealPlan = plan
                 } else {
-                    isExplainingMeal = true
+                    explainingExtra = "山ごはん"
+                }
+            }
+            subTile("寄り道", systemImage: "mappin.and.ellipse") {
+                if let plan = upcoming.first {
+                    postHikePlan = plan
+                } else {
+                    explainingExtra = "寄り道"
                 }
             }
         }
