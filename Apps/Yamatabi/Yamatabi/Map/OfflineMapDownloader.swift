@@ -6,7 +6,13 @@ import UIKit
 /// 量と速さの上限は `OfflineMapPolicy` にあります。ここでは必ずその上限に従います。
 @MainActor
 final class OfflineMapDownloader: ObservableObject {
+    /// アプリ全体で1つ。予定の画面から保存を始めて、別のタブへ移っても続くようにするためです。
+    /// 画面ごとに持たせると、画面を閉じた拍子に進み具合が見えなくなります。
+    static let shared = OfflineMapDownloader()
+
     @Published private(set) var isRunning = false
+    /// いま取っている範囲。一覧で「保存しています…」と出し分けるのに使います。
+    @Published private(set) var currentAreaID: UUID?
     @Published private(set) var finishedCount = 0
     @Published private(set) var totalCount = 0
     @Published private(set) var failedCount = 0
@@ -27,30 +33,44 @@ final class OfflineMapDownloader: ObservableObject {
         self.store = store
     }
 
-    /// 範囲のタイルを取りに行く。保存済みのものは飛ばします。終わったら `onFinish` を呼びます。
-    func start(_ area: OfflineArea, onFinish: @escaping (_ saved: Int, _ completed: Bool) -> Void) {
+    /// 範囲のタイルを取りに行く。保存済みのものは飛ばします。
+    /// 終わったら、保存できた枚数・大きさ・最後まで取れたかを範囲に書き込みます。
+    func start(_ area: OfflineArea, onFinish: @escaping () -> Void = {}) {
         guard !isRunning else { return }
         let keys = area.keys
         guard keys.count <= OfflineMapPolicy.maximumTilesPerArea else { return }
 
         isRunning = true
+        currentAreaID = area.id
         finishedCount = 0
         failedCount = 0
         totalCount = keys.count
         // 取っている間に画面が消えると通信が止まるため、取り終えるまで画面を点けておく。
         UIApplication.shared.isIdleTimerDisabled = true
 
-        task = Task {
+        task = Task { [store] in
             let saved = await run(keys)
-            let completed = !Task.isCancelled
+            area.savedTileCount = saved
+            area.isComplete = !Task.isCancelled
+            area.byteCount = Self.bytes(of: keys, in: store)
+            try? area.modelContext?.save()
             UIApplication.shared.isIdleTimerDisabled = false
             isRunning = false
-            onFinish(saved, completed)
+            currentAreaID = nil
+            onFinish()
         }
     }
 
     func cancel() {
         task?.cancel()
+    }
+
+    /// 範囲のタイルの合計の大きさ。
+    nonisolated static func bytes(of keys: [TileKey], in store: OfflineTileStore) -> Int64 {
+        keys.reduce(Int64(0)) { total, key in
+            let size = (try? store.url(for: key).resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            return total + Int64(size)
+        }
     }
 
     /// 決まった数の取り手で順に取る。戻り値は保存済みの枚数（もともとあったものを含む）。
