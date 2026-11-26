@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  プライバシーマニフェスト。App Store への提出に必須です（無いと提出が弾かれます）。
+
+  - 追跡（トラッキング）はしていない。収集するデータもない（開発者のサーバーが無いため）
+  - 「理由の申告が要るAPI」を使っている箇所と、その理由:
+    - UserDefaults（CA92.1）: 自宅・車種などの設定を、このアプリの中だけで保存する（UserSettings.swift）
+    - 空き容量（85F4.1）: オフライン地図タブで、端末の空き容量を利用者に表示する（OfflineMapsView.swift）
+  使うAPIを増やしたら、ここも足してください。
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryDiskSpace</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>85F4.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

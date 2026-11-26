@@ -17,7 +17,7 @@ struct PlanExtrasSection: View {
             }
 
             Button(action: onOpenPostHike) {
-                Label("下山後に寄る場所を探す", systemImage: "drop.fill")
+                Label("下山後に寄る場所を探す", systemImage: "mappin.and.ellipse")
             }
         } footer: {
             Text("レシピを選ぶと買い出しリストを作ります。"

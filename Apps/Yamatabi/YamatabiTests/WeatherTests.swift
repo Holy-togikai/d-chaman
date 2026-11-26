@@ -166,9 +166,38 @@ struct WeatherTests {
         #expect(WeatherSource.metNo.attribution.contains("MET Norway"))
     }
 
+    /// 主は met.no、控えは Open-Meteo（決定記録 0003）。
     @Test func 控えから取ったことが分かる() {
-        #expect(!WeatherSource.openMeteo.isFallback)
-        #expect(WeatherSource.metNo.isFallback)
+        #expect(!WeatherSource.metNo.isFallback)
+        #expect(WeatherSource.openMeteo.isFallback)
+    }
+
+    /// met.no の規約は、座標を小数4桁までに丸めるよう求めている。
+    @Test func metNoの覚え書きは座標を4桁に丸める() {
+        let a = MetNoCache.key(latitude: 35.360_61, longitude: 138.727_44, elevation: 3776.2)
+        let b = MetNoCache.key(latitude: 35.360_64, longitude: 138.727_41, elevation: 3775.8)
+        #expect(a == b, "\(a) と \(b)")
+        #expect(a == "35.3606,138.7274,3776")
+    }
+
+    /// 期限までは覚えた予報を返し、期限を過ぎたら取り直す。
+    @Test func metNoの覚え書きは期限まで使う() async {
+        let cache = MetNoCache()
+        let now = Date()
+        let day = Self.day(probability: nil, amount: 1)
+        await cache.store([day], for: "k", until: now.addingTimeInterval(60))
+        #expect(await cache.days(for: "k", now: now) == [day])
+        #expect(await cache.days(for: "k", now: now.addingTimeInterval(61)) == nil)
+    }
+
+    @Test func metNoのExpires見出しを読む() throws {
+        let url = try #require(URL(string: "https://api.met.no/"))
+        let response = try #require(HTTPURLResponse(
+            url: url, statusCode: 200, httpVersion: nil,
+            headerFields: ["Expires": "Fri, 27 Nov 2026 12:30:00 GMT"]
+        ))
+        let expires = try #require(MetNoCache.expires(from: response))
+        #expect(expires.timeIntervalSince1970 == 1_795_782_600)
     }
 
     /// 待つ上限を長くしすぎない。
