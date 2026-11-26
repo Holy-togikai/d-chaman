@@ -76,7 +76,7 @@ struct PlanOfflineMapSection: View {
                  + "（\(OfflineMapsView.format(savedArea.byteCount))）")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-        } else if let planned {
+        } else if planned != nil {
             Button {
                 isConfirming = true
             } label: {
@@ -90,7 +90,7 @@ struct PlanOfflineMapSection: View {
             .buttonStyle(.plain)
             .disabled(downloader.isRunning)
 
-            Text(caption(for: planned))
+            Text(caption)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } else {
@@ -112,17 +112,13 @@ struct PlanOfflineMapSection: View {
             .padding(.top, 4)
     }
 
-    private func caption(for planned: OfflineAreaPlanner.Plan) -> String {
-        var text = "電波の無い山中に備えて、出発の前に保存してください。"
-        if plan.trailheadCoordinate == nil {
-            text += "登山口が決まっていないため、山頂のまわりを広めに保存します。"
-        } else {
-            text += "登山口から少し離れた駐車場まで含めて保存します。"
-        }
-        // 枚数は利用者には意味が伝わらないので、通信量の目安になる大きさだけを出す。
-        text += "大きさは約\(OfflineMapsView.format(estimatedBytes))です。"
+    /// ボタンの下に出す注記。利用者に要るのは通信量の目安だけなので、大きさだけを出す。
+    /// 範囲の決め方（駐車場の余白など）の説明は、利用者には不要と判断した（人間の判断）。
+    private var caption: String {
+        var text = "約\(OfflineMapsView.format(estimatedBytes))"
+        // 別の地図を保存している間はボタンが押せない。理由が分からないと困るので、そのときだけ添える。
         if downloader.isRunning {
-            text += "いまは別の地図を保存しています。終わってから押してください。"
+            text += "（いまは別の地図を保存しています）"
         }
         return text
     }
