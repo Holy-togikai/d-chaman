@@ -15,3 +15,8 @@ identifier_name:
     error: 2
   excluded:
     - id   # Identifiable の要件
+    # 地図タイルの番号はズーム・横・縦を z・x・y と呼ぶのが決まり（MapKit の MKTileOverlayPath も同じ）。
+    # 長い名前に変えると、仕様書やほかの実装と見比べにくくなる。
+    - x
+    - y
+    - z

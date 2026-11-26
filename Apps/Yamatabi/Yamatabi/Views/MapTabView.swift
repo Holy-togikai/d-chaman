@@ -25,6 +25,13 @@ struct MapTabView: View {
     /// 地図で選んだ山。予定を立て始めると、1ページずつの作成画面を出します。
     @State private var planningMountain: Mountain?
 
+    /// オフライン地図の画面を出しているか。
+    @State private var isShowingOfflineMaps = false
+    /// 地図で今見えている範囲を読む窓口。保存する範囲に使います。
+    @State private var viewport = MapViewport()
+    /// 保存した範囲を見に行くときに、地図に渡す範囲。
+    @State private var focusedBox: GeoBox?
+
     /// 下部のパネルとタブバーが地図に重なる高さ。出典表示を隠さないために測っています。
     @State private var bottomOverlayHeight: CGFloat = 0
 
@@ -41,6 +48,8 @@ struct MapTabView: View {
             showsUserLocation: tracker.state != .idle,
             followsTrack: tracker.state == .recording,
             onSelect: { selected = $0.mountain },
+            viewport: viewport,
+            focusedBox: focusedBox,
             attributionBottomInset: bottomOverlayHeight
         )
         .ignoresSafeArea()
@@ -82,6 +91,14 @@ struct MapTabView: View {
         }
         .sheet(isPresented: $isShowingRecords) {
             RecordListView()
+        }
+        .sheet(isPresented: $isShowingOfflineMaps) {
+            OfflineMapsView(
+                visibleBox: viewport.box,
+                tile: tile,
+                suggestedName: selected?.displayName,
+                onShow: { focusedBox = $0 }
+            )
         }
         // confirmationDialog ではキャンセルボタンが表示されない場合があり、
         // 記録を止めるという取り返しのつかない操作で逃げ道が見えないのは危ないため、
@@ -140,6 +157,16 @@ struct MapTabView: View {
                     .frame(width: 40, height: 40)
                     .background(.regularMaterial, in: Circle())
             }
+
+            Button {
+                isShowingOfflineMaps = true
+            } label: {
+                Image(systemName: "arrow.down.circle")
+                    .font(.system(size: 16, weight: .medium))
+                    .frame(width: 40, height: 40)
+                    .background(.regularMaterial, in: Circle())
+            }
+            .accessibilityLabel("オフライン地図")
 
             Menu {
                 Picker("地図の種類", selection: $tile) {
