@@ -37,6 +37,7 @@ struct PlanOfflineMapSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             content
+            privateUseNotice
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -100,6 +101,15 @@ struct PlanOfflineMapSection: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    /// 国土地理院から「アプリ上でもその旨記載いただけると幸いです」と依頼された注意書き（決定記録 0001）。
+    /// 求められているのはこの旨の記載だけなので、リンクは付けず最小限の文にしている。消さないでください。
+    private var privateUseNotice: some View {
+        Text("保存した地図は私的利用の範囲でお使いください。範囲を超える場合は、国土地理院への申請が必要になることがあります。")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
     }
 
     private func caption(for planned: OfflineAreaPlanner.Plan) -> String {
