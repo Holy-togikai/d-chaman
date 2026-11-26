@@ -26,10 +26,8 @@ struct GSIMapView: UIViewRepresentable {
     var onSelect: ((MountainAnnotation) -> Void)?
     /// 地図を長押ししたときに呼ばれる。登山口を自分で指定するのに使います。
     var onLongPress: ((CLLocationCoordinate2D) -> Void)?
-    /// 今見えている範囲を、外から読み取るための窓口。地図を保存する範囲に使います。
-    var viewport: MapViewport?
     /// この範囲が収まるようにカメラを合わせる。保存した地図を見に行くのに使います。
-    var focusedBox: GeoBox?
+    var focusedBox: MapFocus?
 
     /// 出典表示を持ち上げる高さ。
     ///
@@ -64,7 +62,6 @@ struct GSIMapView: UIViewRepresentable {
         )
         mapView.addGestureRecognizer(longPress)
         context.coordinator.mapView = mapView
-        viewport?.mapView = mapView
 
         return mapView
     }
@@ -75,7 +72,8 @@ struct GSIMapView: UIViewRepresentable {
         updateAttribution(on: mapView)
 
         if let focusedBox, context.coordinator.focusedBox != focusedBox {
-            context.coordinator.focus(on: focusedBox, in: mapView)
+            context.coordinator.focus(on: focusedBox.box, in: mapView)
+            context.coordinator.focusedBox = focusedBox
         }
 
         if mapView.showsUserLocation != showsUserLocation {
@@ -133,7 +131,7 @@ struct GSIMapView: UIViewRepresentable {
         var focusedID: String?
         var onSelect: ((MountainAnnotation) -> Void)?
         var onLongPress: ((CLLocationCoordinate2D) -> Void)?
-        var focusedBox: GeoBox?
+        var focusedBox: MapFocus?
 
         /// 記録中は、軌跡の先端を画面の中心に保つ。記録していないときは nil を渡す。
         func follow(track tip: TrackPoint?, on mapView: MKMapView) {
@@ -174,7 +172,6 @@ struct GSIMapView: UIViewRepresentable {
                 edgePadding: UIEdgeInsets(top: 80, left: 20, bottom: 160, right: 20),
                 animated: true
             )
-            focusedBox = box
         }
 
     /// 出典表示を持ち上げる高さ。
@@ -314,23 +311,13 @@ struct GSIMapView: UIViewRepresentable {
     }
 }
 
-/// 地図で今見えている範囲を読み取る窓口。
+/// 地図をこの範囲へ寄せてほしい、という頼み。
 ///
-/// 範囲が変わるたびに知らせてもらう作りにしたところ、山を選んでカメラが自動で寄ったときに
-/// 知らせが届かず、日本全体の範囲のまま保存しようとした（見積もり2,500万枚）。
-/// 必要になった瞬間に地図そのものから読むほうが、取り違えが起きない。
-final class MapViewport {
-    weak var mapView: MKMapView?
-
-    var box: GeoBox? {
-        guard let region = mapView?.region else { return nil }
-        return GeoBox(
-            minLatitude: region.center.latitude - region.span.latitudeDelta / 2,
-            maxLatitude: region.center.latitude + region.span.latitudeDelta / 2,
-            minLongitude: region.center.longitude - region.span.longitudeDelta / 2,
-            maxLongitude: region.center.longitude + region.span.longitudeDelta / 2
-        )
-    }
+/// 範囲だけで比べると、同じ保存範囲を2回続けて開いたときに「変わっていない」とみなされ、
+/// 地図が動かない。頼むたびに別の札を付けて、毎回寄せるようにしている。
+struct MapFocus: Equatable {
+    let box: GeoBox
+    let id = UUID()
 }
 
 extension MKCoordinateRegion {

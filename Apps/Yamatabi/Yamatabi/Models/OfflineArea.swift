@@ -22,8 +22,13 @@ final class OfflineArea {
     var savedTileCount: Int = 0
     /// 最後まで取り終えたか。途中で止めたときは false のまま残し、続きから取れるようにします。
     var isComplete: Bool = false
+    /// どの山のために保存したか。予定の画面で「保存済み」を出すのに使います。
+    var mountainID: String?
+    /// この範囲のタイルの合計の大きさ（バイト）。容量を管理しやすいよう、範囲ごとに出します。
+    /// 他の範囲と重なるタイルは両方に数えるので、合計は端末の使用量より大きくなることがあります。
+    var byteCount: Int64 = 0
 
-    init(name: String, tile: GSITile, box: GeoBox, zooms: ClosedRange<Int>) {
+    init(name: String, tile: GSITile, box: GeoBox, zooms: ClosedRange<Int>, mountainID: String? = nil) {
         self.id = UUID()
         self.name = name
         self.createdAt = Date()
@@ -35,6 +40,7 @@ final class OfflineArea {
         self.minZoom = zooms.lowerBound
         self.maxZoom = zooms.upperBound
         self.tileCount = TileMath.count(of: box, zooms: zooms)
+        self.mountainID = mountainID
     }
 
     var tile: GSITile { GSITile(rawValue: tileRaw) ?? .standard }

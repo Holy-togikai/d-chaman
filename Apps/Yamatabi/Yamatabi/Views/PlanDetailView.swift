@@ -45,6 +45,9 @@ struct PlanDetailView: View {
                         .background(Color.brandGreenDeep, in: RoundedRectangle(cornerRadius: 14))
                 }
 
+                // 山に入る前に済ませておくこと。時間割のすぐ下に置き、見落とされないようにする。
+                PlanOfflineMapSection(plan: plan)
+
                 extras
             }
             .padding(.horizontal, 16)
