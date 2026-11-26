@@ -64,7 +64,7 @@ struct PlanOfflineMapSection: View {
                 value: Double(downloader.finishedCount),
                 total: Double(max(downloader.totalCount, 1))
             )
-            Text("\(downloader.finishedCount) / \(downloader.totalCount) 枚")
+            Text("\(downloader.percent)%")
                 .font(.caption)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
@@ -119,7 +119,8 @@ struct PlanOfflineMapSection: View {
         } else {
             text += "登山口から少し離れた駐車場まで含めて保存します。"
         }
-        text += "約\(planned.tileCount.formatted())枚・約\(OfflineMapsView.format(estimatedBytes))。"
+        // 枚数は利用者には意味が伝わらないので、通信量の目安になる大きさだけを出す。
+        text += "大きさは約\(OfflineMapsView.format(estimatedBytes))です。"
         if downloader.isRunning {
             text += "いまは別の地図を保存しています。終わってから押してください。"
         }

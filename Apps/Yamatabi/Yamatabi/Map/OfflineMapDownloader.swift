@@ -17,6 +17,14 @@ final class OfflineMapDownloader: ObservableObject {
     @Published private(set) var totalCount = 0
     @Published private(set) var failedCount = 0
 
+    /// 進み具合（0〜100）。
+    ///
+    /// 画面には枚数ではなくこちらを出す。「47 / 369 枚」では、利用者には何の枚数か分からないため。
+    var percent: Int {
+        guard totalCount > 0 else { return 0 }
+        return min(100, finishedCount * 100 / totalCount)
+    }
+
     private let store: OfflineTileStore
     private var task: Task<Void, Never>?
 

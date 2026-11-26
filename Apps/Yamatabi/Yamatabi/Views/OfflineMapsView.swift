@@ -61,7 +61,7 @@ struct OfflineMapsView: View {
                     value: Double(downloader.finishedCount),
                     total: Double(max(downloader.totalCount, 1))
                 )
-                Text("\(downloader.finishedCount) / \(downloader.totalCount) 枚")
+                Text("\(downloader.percent)%")
                     .font(.caption)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -131,10 +131,8 @@ struct OfflineMapsView: View {
         if area.id == downloader.currentAreaID {
             return "保存しています…"
         }
-        var parts = [
-            area.createdAt.formatted(.dateTime.month().day()),
-            "\(area.savedTileCount.formatted())枚"
-        ]
+        // 枚数は利用者には意味が伝わらないので出さない。大きさは右側に出している。
+        var parts = ["\(area.createdAt.formatted(.dateTime.month().day()))に保存"]
         if !area.isComplete { parts.append("途中で止めました") }
         return parts.joined(separator: " ・ ")
     }
